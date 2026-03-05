@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
+
+const props = defineProps<{
+  contextMenuOpen: boolean
+}>()
 
 const emit = defineEmits<{
   canvasReady: [canvasElement: HTMLCanvasElement]
   viewportResize: [width: number, height: number]
+  contextMenuOpenChange: [open: boolean]
 }>()
 
 const wrapperElement = ref<HTMLDivElement | null>(null)
@@ -37,7 +43,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="wrapperElement" class="absolute inset-0">
-    <canvas ref="canvasElement" class="h-full w-full" />
-  </div>
+  <ContextMenu :open="props.contextMenuOpen" @update:open="emit('contextMenuOpenChange', $event)">
+    <ContextMenuTrigger as-child>
+      <div ref="wrapperElement" class="absolute inset-0">
+        <canvas ref="canvasElement" class="h-full w-full" />
+      </div>
+    </ContextMenuTrigger>
+    <slot name="context-menu-content" />
+  </ContextMenu>
 </template>

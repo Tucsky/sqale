@@ -2,12 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { Edit3 } from 'lucide-vue-next'
 
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -26,11 +24,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
+  applyLabel: [payload: { layerId: string; name: string }]
   applyFrame: [payload: { layerId: string; x: number; y: number; width: number; height: number }]
   applyOpacity: [payload: { layerId: string; opacity: number }]
   applyColor: [payload: { layerId: string; fillColor: string }]
 }>()
 
+const labelValue = ref('')
 const xValue = ref(0)
 const yValue = ref(0)
 const widthValue = ref(0)
@@ -45,6 +45,7 @@ watch(
       return
     }
 
+    labelValue.value = target.name
     xValue.value = target.x
     yValue.value = target.y
     widthValue.value = target.width
@@ -75,31 +76,92 @@ function handleOpacityUpdate(value: number[] | undefined): void {
   opacityValue.value = nextOpacity
 }
 
-function applyChanges(): void {
+watch(
+  () => [props.open, props.target?.id, labelValue.value] as const,
+  ([isOpen, targetId, name]) => {
+    if (!isOpen || !targetId || !props.target) {
+      return
+    }
+    if (!name || name === props.target.name) {
+      return
+    }
+
+    emit('applyLabel', {
+      layerId: targetId,
+      name,
+    })
+  },
+)
+
+watch(
+  () => [props.open, props.target?.id, xValue.value, yValue.value, widthValue.value, heightValue.value] as const,
+  ([isOpen, targetId, x, y, width, height]) => {
+    if (!isOpen || !targetId || !props.target) {
+      return
+    }
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+      return
+    }
+    if (x === props.target.x && y === props.target.y && width === props.target.width && height === props.target.height) {
+      return
+    }
+
+    emit('applyFrame', {
+      layerId: targetId,
+      x,
+      y,
+      width,
+      height,
+    })
+  },
+)
+
+watch(
+  () => [props.open, props.target?.id, props.target?.type, opacityValue.value] as const,
+  ([isOpen, targetId, targetType, opacity]) => {
+    if (!isOpen || !targetId || targetType !== LayerType.PlanImage || !props.target) {
+      return
+    }
+    if (!Number.isFinite(opacity) || opacity === props.target.opacity) {
+      return
+    }
+
+    emit('applyOpacity', {
+      layerId: targetId,
+      opacity,
+    })
+  },
+)
+
+watch(
+  () => [props.open, props.target?.id, props.target?.type, fillColorValue.value] as const,
+  ([isOpen, targetId, targetType, fillColor]) => {
+    if (!isOpen || !targetId || targetType !== LayerType.Furniture || !props.target) {
+      return
+    }
+    if (!fillColor || fillColor === props.target.fillColor) {
+      return
+    }
+
+    emit('applyColor', {
+      layerId: targetId,
+      fillColor,
+    })
+  },
+)
+
+function handleLabelBlur(): void {
   if (!props.target) {
     return
   }
 
-  emit('applyFrame', {
-    layerId: props.target.id,
-    x: xValue.value,
-    y: yValue.value,
-    width: widthValue.value,
-    height: heightValue.value,
-  })
-  if (props.target.type === LayerType.PlanImage) {
-    emit('applyOpacity', {
-      layerId: props.target.id,
-      opacity: opacityValue.value,
-    })
+  const trimmedLabel = labelValue.value.trim()
+  if (!trimmedLabel) {
+    labelValue.value = props.target.name
+    return
   }
-  if (props.target.type === LayerType.Furniture) {
-    emit('applyColor', {
-      layerId: props.target.id,
-      fillColor: fillColorValue.value,
-    })
-  }
-  emit('close')
+
+  labelValue.value = trimmedLabel
 }
 </script>
 
@@ -117,6 +179,11 @@ function applyChanges(): void {
       </DialogHeader>
 
       <div v-if="props.target" class="space-y-4">
+        <label class="space-y-1 text-sm">
+          <Label>Name</Label>
+          <Input v-model="labelValue" @blur="handleLabelBlur" />
+        </label>
+
         <section class="space-y-3 rounded-md border p-3">
           <div class="text-sm font-medium">Positioning and sizing</div>
 
@@ -165,11 +232,6 @@ function applyChanges(): void {
           </div>
         </section>
       </div>
-
-      <DialogFooter class="gap-2">
-        <Button variant="secondary" @click="emit('close')">Cancel</Button>
-        <Button @click="applyChanges">Apply</Button>
-      </DialogFooter>
     </DialogContent>
   </Dialog>
 </template>

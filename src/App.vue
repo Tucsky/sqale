@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import OngoingActionBar from '@/components/OngoingActionBar.vue'
 import CanvasView from '@/components/CanvasView.vue'
+import LayerObjectContextMenuContent from '@/components/LayerObjectContextMenuContent.vue'
 import LayerPanel from '@/components/LayerPanel.vue'
 import Toolbar from '@/components/Toolbar.vue'
 import TopBar from '@/components/TopBar.vue'
@@ -32,6 +33,8 @@ const settingsOpen = ref(false)
 const floorsOpen = ref(false)
 const scaleDialogOpen = ref(false)
 const objectEditDialogOpen = ref(false)
+const canvasContextMenuOpen = ref(false)
+const canvasContextLayerId = ref<string | null>(null)
 const measuredCalibrationDistance = ref(0)
 const roomDraftClosed = ref(false)
 const roomDraftAreaSqm = ref(0)
@@ -43,6 +46,20 @@ const gridVisible = computed(() => currentFloor.value?.grid.visible ?? false)
 const gridSpacing = computed(() => currentFloor.value?.grid.spacingMeters ?? 0.5)
 const gridSnap = computed(() => currentFloor.value?.grid.snap ?? false)
 const metersPerPixel = computed(() => currentFloor.value?.scale.metersPerPixel ?? 0.01)
+// Keeping this orchestration in one module avoids cross-component watcher races between
+// canvas selection, context menu targeting, persistence scheduling, and dialog snapshots.
+const canvasContextLayer = computed(() => {
+  const contextLayerId = canvasContextLayerId.value
+  if (!contextLayerId || !canvasEngine.value) {
+    return null
+  }
+
+  if (selectedLayerSnapshot.value?.id === contextLayerId) {
+    return selectedLayerSnapshot.value
+  }
+
+  return canvasEngine.value.getLayerEditSnapshot(contextLayerId)
+})
 const { bindClipboardHandlers, unbindClipboardHandlers, handlePlanUpload } = useCanvasClipboard({
   canvasEngine,
   currentFloor,
@@ -88,6 +105,18 @@ function setupCanvasEngine(canvasElement: HTMLCanvasElement): void {
       selectedLayerId.value = layerId
       syncSelectedLayerSnapshot()
     },
+    onLayerContextMenuRequested(layerId) {
+      canvasContextLayerId.value = layerId
+      if (!layerId) {
+        canvasContextMenuOpen.value = false
+        return
+      }
+
+      if (selectedLayerId.value !== layerId) {
+        selectedLayerId.value = layerId
+      }
+      syncSelectedLayerSnapshot()
+    },
     onLayerDoubleClicked(layerId) {
       openLayerEdit(layerId)
     },
@@ -105,6 +134,15 @@ function setupCanvasEngine(canvasElement: HTMLCanvasElement): void {
 }
 function handleViewportResize(width: number, height: number): void {
   canvasEngine.value?.resize(width, height)
+}
+function handleCanvasContextMenuOpenChange(open: boolean): void {
+  if (!open) {
+    canvasContextMenuOpen.value = false
+    canvasContextLayerId.value = null
+    return
+  }
+
+  canvasContextMenuOpen.value = Boolean(canvasContextLayer.value)
 }
 function syncSelectedLayerSnapshot(): void {
   if (!canvasEngine.value || !selectedLayerId.value) {
@@ -146,6 +184,8 @@ async function selectFloor(nextFloorId: string): Promise<void> {
   currentFloor.value = cloneFloorModel(nextFloor)
   selectedLayerId.value = null
   selectedLayerSnapshot.value = null
+  canvasContextLayerId.value = null
+  canvasContextMenuOpen.value = false
   objectEditDialogOpen.value = false
   await setCurrentFloorId(nextFloorId)
   canvasEngine.value?.loadFloor(nextFloor)
@@ -231,6 +271,29 @@ function addFurniture(): void {
   const roomMatch = currentFloor.value.rooms.find((room) => room.id === selectedLayerId.value)
   canvasEngine.value.addFurniture(roomMatch?.id ?? null, canvasEngine.value.getViewportCenter())
 }
+function selectLayer(layerId: string): void {
+  canvasEngine.value?.selectObject(layerId)
+}
+function toggleLayerVisibility(layerId: string): void {
+  canvasEngine.value?.toggleVisibility(layerId)
+  syncSelectedLayerSnapshot()
+}
+function toggleLayerLock(layerId: string): void {
+  canvasEngine.value?.toggleLock(layerId)
+  syncSelectedLayerSnapshot()
+}
+function renameLayer(layerId: string, name: string): void {
+  canvasEngine.value?.renameLayer(layerId, name)
+  syncSelectedLayerSnapshot()
+}
+function bringLayerToFront(layerId: string): void {
+  canvasEngine.value?.bringLayerToFront(layerId)
+  syncSelectedLayerSnapshot()
+}
+function bringLayerToBack(layerId: string): void {
+  canvasEngine.value?.bringLayerToBack(layerId)
+  syncSelectedLayerSnapshot()
+}
 function openLayerEdit(layerId: string): void {
   if (!canvasEngine.value) {
     return
@@ -254,6 +317,10 @@ function applyLayerColor(payload: { layerId: string; fillColor: string }): void 
   canvasEngine.value?.updateFurnitureColor(payload.layerId, payload.fillColor)
   syncSelectedLayerSnapshot()
 }
+function applyLayerName(payload: { layerId: string; name: string }): void {
+  canvasEngine.value?.renameLayer(payload.layerId, payload.name)
+  syncSelectedLayerSnapshot()
+}
 function applySelectionSize(payload: { layerId: string; width: number; height: number }): void {
   if (!selectedLayerSnapshot.value || selectedLayerSnapshot.value.id !== payload.layerId) {
     return
@@ -269,6 +336,10 @@ function applySelectionSize(payload: { layerId: string; width: number; height: n
 }
 function deleteLayerFromPanel(layerId: string): void {
   canvasEngine.value?.deleteLayer(layerId)
+  if (canvasContextLayerId.value === layerId) {
+    canvasContextLayerId.value = null
+    canvasContextMenuOpen.value = false
+  }
   if (selectedLayerId.value === layerId) {
     selectedLayerId.value = null
     selectedLayerSnapshot.value = null
@@ -314,7 +385,27 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
 </script>
 <template>
   <main class="canvas-bg relative h-screen w-screen overflow-hidden">
-    <CanvasView @canvas-ready="setupCanvasEngine" @viewport-resize="handleViewportResize" />
+    <CanvasView
+      :context-menu-open="canvasContextMenuOpen"
+      @canvas-ready="setupCanvasEngine"
+      @viewport-resize="handleViewportResize"
+      @context-menu-open-change="handleCanvasContextMenuOpenChange"
+    >
+      <template #context-menu-content>
+        <LayerObjectContextMenuContent
+          v-if="canvasContextLayer"
+          :layer-id="canvasContextLayer.id"
+          :visible="canvasContextLayer.visible"
+          :locked="canvasContextLayer.locked"
+          @toggle-visibility="toggleLayerVisibility"
+          @toggle-lock="toggleLayerLock"
+          @bring-to-front="bringLayerToFront"
+          @bring-to-back="bringLayerToBack"
+          @edit-layer="openLayerEdit"
+          @delete-layer="deleteLayerFromPanel"
+        />
+      </template>
+    </CanvasView>
     <TopBar
       :layers-open="layersOpen"
       @toggle-layers="layersOpen = !layersOpen"
@@ -333,10 +424,12 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       v-if="layersOpen"
       :root-node="layerTree"
       :selected-layer-id="selectedLayerId"
-      @select-layer="canvasEngine?.selectObject($event)"
-      @toggle-visibility="canvasEngine?.toggleVisibility($event)"
-      @toggle-lock="canvasEngine?.toggleLock($event)"
-      @rename-layer="(layerId, name) => canvasEngine?.renameLayer(layerId, name)"
+      @select-layer="selectLayer"
+      @toggle-visibility="toggleLayerVisibility"
+      @toggle-lock="toggleLayerLock"
+      @bring-to-front="bringLayerToFront"
+      @bring-to-back="bringLayerToBack"
+      @rename-layer="renameLayer"
       @delete-layer="deleteLayerFromPanel"
       @edit-layer="openLayerEdit"
     />
@@ -379,6 +472,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :open="objectEditDialogOpen"
       :target="selectedLayerSnapshot"
       @close="objectEditDialogOpen = false"
+      @apply-label="applyLayerName"
       @apply-frame="applyLayerFrame"
       @apply-opacity="applyLayerOpacity"
       @apply-color="applyLayerColor"

@@ -219,6 +219,28 @@ export function removeLayer(floor: FloorModel, layerId: string): boolean {
   return false
 }
 
+/**
+ * Reorders room/furniture collections in-place so rendering can preserve stacking between refreshes.
+ */
+export function moveLayerToFront(floor: FloorModel, layerId: string): boolean {
+  if (moveCollectionLayerToFront(floor.rooms, layerId)) {
+    return true
+  }
+
+  return moveCollectionLayerToFront(floor.furnitures, layerId)
+}
+
+/**
+ * Reorders room/furniture collections in-place so rendering can preserve stacking between refreshes.
+ */
+export function moveLayerToBack(floor: FloorModel, layerId: string): boolean {
+  if (moveCollectionLayerToBack(floor.rooms, layerId)) {
+    return true
+  }
+
+  return moveCollectionLayerToBack(floor.furnitures, layerId)
+}
+
 export function setLayerOpacity(floor: FloorModel, layerId: string, opacity: number): boolean {
   if (floor.planImage?.id === layerId) {
     floor.planImage.opacity = opacity
@@ -291,4 +313,32 @@ function findContainingRoomId(floor: FloorModel, point: PointMeters): string | n
   }
 
   return null
+}
+
+function moveCollectionLayerToFront<TLayer extends { id: string }>(layers: TLayer[], layerId: string): boolean {
+  const layerIndex = layers.findIndex((candidate) => candidate.id === layerId)
+  if (layerIndex < 0 || layerIndex === layers.length - 1) {
+    return layerIndex >= 0
+  }
+
+  const [layer] = layers.splice(layerIndex, 1)
+  if (!layer) {
+    return false
+  }
+  layers.push(layer)
+  return true
+}
+
+function moveCollectionLayerToBack<TLayer extends { id: string }>(layers: TLayer[], layerId: string): boolean {
+  const layerIndex = layers.findIndex((candidate) => candidate.id === layerId)
+  if (layerIndex < 0 || layerIndex === 0) {
+    return layerIndex >= 0
+  }
+
+  const [layer] = layers.splice(layerIndex, 1)
+  if (!layer) {
+    return false
+  }
+  layers.unshift(layer)
+  return true
 }

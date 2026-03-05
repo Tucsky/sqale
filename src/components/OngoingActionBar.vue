@@ -39,6 +39,26 @@ watch(
   },
   { immediate: true },
 )
+watch(
+  () => [props.selectedLayer?.id, widthValue.value, heightValue.value] as const,
+  ([layerId, width, height]) => {
+    if (!layerId || !props.selectedLayer) {
+      return
+    }
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return
+    }
+    if (width === props.selectedLayer.width && height === props.selectedLayer.height) {
+      return
+    }
+
+    emit('applySelectedSize', {
+      layerId,
+      width,
+      height,
+    })
+  },
+)
 
 const selectedSurface = computed(() => {
   if (!props.selectedLayer) {
@@ -48,18 +68,6 @@ const selectedSurface = computed(() => {
   return projectLayerSurfaceSqm(props.selectedLayer, widthValue.value, heightValue.value)
 })
 const showSelectionAction = computed(() => !props.calibrating && !props.drawingRoom && Boolean(props.selectedLayer))
-
-function applySelectedSize(): void {
-  if (!props.selectedLayer) {
-    return
-  }
-
-  emit('applySelectedSize', {
-    layerId: props.selectedLayer.id,
-    width: widthValue.value,
-    height: heightValue.value,
-  })
-}
 </script>
 
 <template>
@@ -101,7 +109,6 @@ function applySelectedSize(): void {
           <Input v-model.number="heightValue" type="number" min="0.05" step="0.01" class="h-8 w-24" />
         </label>
         <span class="text-sm text-muted-foreground">Surface {{ selectedSurface.toFixed(2) }} m²</span>
-        <Button size="sm" @click="applySelectedSize">Apply</Button>
       </template>
     </div>
   </div>

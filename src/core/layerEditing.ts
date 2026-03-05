@@ -5,6 +5,8 @@ export interface LayerEditSnapshot {
   id: string
   type: LayerType
   name: string
+  visible: boolean
+  locked: boolean
   fillColor: string | null
   x: number
   y: number
@@ -41,6 +43,8 @@ export function buildLayerEditSnapshot(
       id: layerId,
       type: LayerType.PlanImage,
       name: floor.planImage.name,
+      visible: floor.planImage.visible,
+      locked: floor.planImage.locked,
       fillColor: null,
       x: floor.planImage.position.x,
       y: floor.planImage.position.y,
@@ -61,6 +65,8 @@ export function buildLayerEditSnapshot(
       id: layerId,
       type: LayerType.Room,
       name: room.name,
+      visible: room.visible,
+      locked: room.locked,
       fillColor: null,
       x: sceneObject.left ?? 0,
       y: sceneObject.top ?? 0,
@@ -84,6 +90,8 @@ export function buildLayerEditSnapshot(
     id: layerId,
     type: LayerType.Furniture,
     name: furniture.label,
+    visible: furniture.visible,
+    locked: furniture.locked,
     fillColor: furniture.fillColor ?? null,
     x: furniture.position.x,
     y: furniture.position.y,

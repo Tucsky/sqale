@@ -37,6 +37,7 @@ export interface CanvasEngineCallbacks {
   onFloorUpdated?: (floor: FloorModel) => void
   onLayerTreeChanged?: (layerTree: LayerNode) => void
   onSelectionChanged?: (layerId: string | null) => void
+  onLayerContextMenuRequested?: (layerId: string | null) => void
   onLayerDoubleClicked?: (layerId: string) => void
   onCalibrationMeasured?: (calibration: CalibrationResult) => void
   onRoomDraftChanged?: (draft: { isClosed: boolean; areaSqm: number }) => void
@@ -56,8 +57,9 @@ export class CanvasEngineCore {
     this.canvas = new fabric.Canvas(canvasElement, {
       preserveObjectStacking: true,
       selection: true,
-      stopContextMenu: true,
+      stopContextMenu: false,
       targetFindTolerance: 8,
+      fireRightClick: true,  // <-- enable firing of right click events
     })
     this.callbacks = callbacks
   }

@@ -37,6 +37,28 @@ function createPasteEvent(overrides: Partial<ClipboardEvent> = {}): ClipboardEve
   } as unknown as ClipboardEvent
 }
 
+function createCopyEvent(overrides: Partial<ClipboardEvent> = {}): ClipboardEvent {
+  return {
+    target: null,
+    clipboardData: undefined,
+    preventDefault: vi.fn(),
+    ...overrides,
+  } as unknown as ClipboardEvent
+}
+
+function createClipboardData(overrides: { items?: DataTransferItem[] } = {}): DataTransfer {
+  const clipboardStore = new Map<string, string>()
+  const items = (overrides.items ?? []) as unknown as DataTransferItemList
+  return {
+    items,
+    setData: vi.fn((format: string, value: string) => {
+      clipboardStore.set(format, value)
+      return true
+    }),
+    getData: vi.fn((format: string) => clipboardStore.get(format) ?? ''),
+  } as unknown as DataTransfer
+}
+
 describe('canvasClipboard shortcuts', () => {
   it('matches copy shortcuts for cmd/ctrl + c', () => {
     expect(isCopyShortcut({ key: 'c', metaKey: true, ctrlKey: false })).toBe(true)
@@ -93,14 +115,49 @@ describe('createCanvasClipboardBindings', () => {
       pasteImage: vi.fn(async () => undefined),
     })
 
-    const copyEvent = createKeyboardEvent({ key: 'c', ctrlKey: true })
-    bindings.onKeyDown(copyEvent)
-    const pasteEvent = createPasteEvent()
+    const clipboardData = createClipboardData()
+    const copyEvent = createCopyEvent({ clipboardData })
+    bindings.onCopy(copyEvent)
+
+    const pasteEvent = createPasteEvent({ clipboardData })
     bindings.onPaste(pasteEvent)
 
     expect(copyEvent.preventDefault).toHaveBeenCalledTimes(1)
     expect(pasteEvent.preventDefault).toHaveBeenCalledTimes(1)
     expect(pasteFurniture).toHaveBeenCalledTimes(1)
     expect(pasteFurniture).toHaveBeenCalledWith(furnitureFixture)
+  })
+
+  it('prefers copied furniture over pasted images when internal object copy is pending', () => {
+    const pasteFurniture = vi.fn()
+    const pasteImage = vi.fn(async () => undefined)
+    const bindings = createCanvasClipboardBindings({
+      deleteSelection: vi.fn(),
+      readSelectedFurniture: () => furnitureFixture,
+      pasteFurniture,
+      pasteImage,
+    })
+
+    const copyEvent = createKeyboardEvent({ key: 'c', ctrlKey: true })
+    bindings.onKeyDown(copyEvent)
+
+    const imageFile = new File(['fixture'], 'plan.png', { type: 'image/png' })
+    const pasteEvent = createPasteEvent({
+      clipboardData: createClipboardData({
+        items: [
+          {
+            kind: 'file',
+            type: 'image/png',
+            getAsFile: () => imageFile,
+          } as unknown as DataTransferItem,
+        ],
+      }),
+    })
+    bindings.onPaste(pasteEvent)
+
+    expect(pasteFurniture).toHaveBeenCalledTimes(1)
+    expect(pasteFurniture).toHaveBeenCalledWith(furnitureFixture)
+    expect(pasteImage).not.toHaveBeenCalled()
+    expect(pasteEvent.preventDefault).toHaveBeenCalledTimes(1)
   })
 })

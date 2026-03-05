@@ -8,6 +8,8 @@ import {
   cloneFurnitureModel,
   createFurnitureTemplate,
   duplicateFurniture,
+  moveLayerToBack,
+  moveLayerToFront,
   removeLayer,
   setFurnitureFillColor,
   setLayerOpacity,
@@ -165,5 +167,79 @@ describe('floorActions', () => {
 
     expect(copiedFurniture).toEqual(sourceFurniture)
     expect(copiedFurniture).not.toBe(reactiveFurniture)
+  })
+
+  it('moves furniture layers to front and back deterministically', () => {
+    const floor = structuredClone(floorFixture)
+    floor.furnitures.push({
+      id: 'furniture_2',
+      label: 'Table',
+      fillColor: '#155e75',
+      position: { x: 2, y: 2 },
+      widthMeters: 1,
+      depthMeters: 1,
+      rotationDeg: 0,
+      roomId: 'room_1',
+      opacity: 1,
+      locked: false,
+      visible: true,
+    })
+    floor.furnitures.push({
+      id: 'furniture_3',
+      label: 'Lamp',
+      fillColor: '#4338ca',
+      position: { x: 3, y: 3 },
+      widthMeters: 1,
+      depthMeters: 1,
+      rotationDeg: 0,
+      roomId: 'room_1',
+      opacity: 1,
+      locked: false,
+      visible: true,
+    })
+
+    expect(moveLayerToFront(floor, 'furniture_1')).toBe(true)
+    expect(floor.furnitures.map((furniture) => furniture.id)).toEqual(['furniture_2', 'furniture_3', 'furniture_1'])
+
+    expect(moveLayerToBack(floor, 'furniture_3')).toBe(true)
+    expect(floor.furnitures.map((furniture) => furniture.id)).toEqual(['furniture_3', 'furniture_2', 'furniture_1'])
+  })
+
+  it('moves room layers to front and back deterministically', () => {
+    const floor = structuredClone(floorFixture)
+    floor.rooms.push({
+      id: 'room_2',
+      name: 'Kitchen',
+      points: [
+        { x: 5, y: 0 },
+        { x: 8, y: 0 },
+        { x: 8, y: 3 },
+        { x: 5, y: 3 },
+      ],
+      areaSqm: 9,
+      opacity: 1,
+      locked: false,
+      visible: true,
+    })
+    floor.rooms.push({
+      id: 'room_3',
+      name: 'Office',
+      points: [
+        { x: 0, y: 4 },
+        { x: 3, y: 4 },
+        { x: 3, y: 7 },
+        { x: 0, y: 7 },
+      ],
+      areaSqm: 9,
+      opacity: 1,
+      locked: false,
+      visible: true,
+    })
+
+    expect(moveLayerToFront(floor, 'room_1')).toBe(true)
+    expect(floor.rooms.map((room) => room.id)).toEqual(['room_2', 'room_3', 'room_1'])
+
+    expect(moveLayerToBack(floor, 'room_3')).toBe(true)
+    expect(floor.rooms.map((room) => room.id)).toEqual(['room_3', 'room_2', 'room_1'])
   })
 })

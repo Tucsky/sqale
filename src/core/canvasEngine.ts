@@ -1,7 +1,7 @@
 import { fabric } from 'fabric'
 import { applyFurniturePaintToSceneObject, snapValue, type EngineFabricObject } from '@/core/canvasObjects'
 import { DraftOverlays, type DraftHandleObject } from '@/core/draftOverlays'
-import { removeLayer, setFurnitureFillColor, setLayerOpacity } from '@/core/floorActions'
+import { moveLayerToBack, moveLayerToFront, removeLayer, setFurnitureFillColor, setLayerOpacity } from '@/core/floorActions'
 import { distanceMeters } from '@/core/geometry'
 import { getDraftRoomAreaSqm } from '@/core/roomDraft'
 import { clamp } from '@/lib/utils'
@@ -146,6 +146,22 @@ export class CanvasEngine extends CanvasEngineCore {
     this.callbacks.onSelectionChanged?.(null)
     this.emitChange()
   }
+  bringLayerToFront(layerId: string): void {
+    if (!this.floor || !moveLayerToFront(this.floor, layerId)) {
+      return
+    }
+
+    this.syncStackingOrder()
+    this.emitChange()
+  }
+  bringLayerToBack(layerId: string): void {
+    if (!this.floor || !moveLayerToBack(this.floor, layerId)) {
+      return
+    }
+
+    this.syncStackingOrder()
+    this.emitChange()
+  }
   private bindCanvasEvents(): void {
     this.canvas.on('mouse:wheel', this.onMouseWheel)
     this.canvas.on('mouse:down', this.onMouseDown)
@@ -174,6 +190,11 @@ export class CanvasEngine extends CanvasEngineCore {
     event.e.stopPropagation()
   }
   private readonly onMouseDown = (event: fabric.IEvent<MouseEvent>): void => {
+    if (event.e.button === 2) {
+      this.handleContextMenuTarget(event.target as EngineFabricObject | undefined)
+      return
+    }
+
     const pointer = this.canvas.getPointer(event.e)
     if (this.mode === EngineMode.DrawRoom) {
       if (this.draftOverlays.isDraftHandle(event.target, 'room')) {
@@ -382,5 +403,72 @@ export class CanvasEngine extends CanvasEngineCore {
     for (const sceneObject of this.canvas.getObjects()) {
       sceneObject.setCoords()
     }
+  }
+  private handleContextMenuTarget(targetObject: EngineFabricObject | undefined): void {
+    if (this.mode !== EngineMode.Idle || !targetObject?.sqaleId || !targetObject.sqaleType) {
+      this.callbacks.onLayerContextMenuRequested?.(null)
+      return
+    }
+
+    const draftTarget = targetObject as EngineFabricObject & DraftHandleObject
+    if (draftTarget.sqaleDraftKind || targetObject.sqaleId === INTERNAL_HELPER_OBJECT_ID) {
+      this.callbacks.onLayerContextMenuRequested?.(null)
+      return
+    }
+
+    this.canvas.setActiveObject(targetObject)
+    this.canvas.requestRenderAll()
+    this.callbacks.onSelectionChanged?.(targetObject.sqaleId)
+    this.callbacks.onLayerContextMenuRequested?.(targetObject.sqaleId)
+  }
+  private syncStackingOrder(): void {
+    if (!this.floor) {
+      return
+    }
+
+    const helperObject = this.findControlsHelperObject()
+    let stackIndex = 0
+    if (helperObject) {
+      this.canvas.moveTo(helperObject, 0)
+      stackIndex = 1
+    }
+
+    if (this.floor.planImage) {
+      const planObject = this.objectById.get(this.floor.planImage.id)
+      if (planObject) {
+        this.canvas.moveTo(planObject, stackIndex)
+        stackIndex += 1
+      }
+    }
+
+    for (const room of this.floor.rooms) {
+      const roomObject = this.objectById.get(room.id)
+      if (!roomObject) {
+        continue
+      }
+      this.canvas.moveTo(roomObject, stackIndex)
+      stackIndex += 1
+    }
+
+    for (const furniture of this.floor.furnitures) {
+      const furnitureObject = this.objectById.get(furniture.id)
+      if (!furnitureObject) {
+        continue
+      }
+      this.canvas.moveTo(furnitureObject, stackIndex)
+      stackIndex += 1
+    }
+
+    this.canvas.requestRenderAll()
+  }
+  private findControlsHelperObject(): EngineFabricObject | null {
+    for (const canvasObject of this.canvas.getObjects()) {
+      const objectWithId = canvasObject as EngineFabricObject
+      if (objectWithId.sqaleId === INTERNAL_HELPER_OBJECT_ID) {
+        return objectWithId
+      }
+    }
+
+    return null
   }
 }

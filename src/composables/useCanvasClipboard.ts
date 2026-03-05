@@ -42,11 +42,13 @@ export function useCanvasClipboard(options: UseCanvasClipboardOptions): CanvasCl
   })
 
   function bindClipboardHandlers(): void {
+    window.addEventListener('copy', clipboardBindings.onCopy)
     window.addEventListener('keydown', clipboardBindings.onKeyDown)
     window.addEventListener('paste', clipboardBindings.onPaste)
   }
 
   function unbindClipboardHandlers(): void {
+    window.removeEventListener('copy', clipboardBindings.onCopy)
     window.removeEventListener('keydown', clipboardBindings.onKeyDown)
     window.removeEventListener('paste', clipboardBindings.onPaste)
   }
