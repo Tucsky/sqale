@@ -44,7 +44,7 @@ export function createPlanImageObject(
 
 export function createRoomObject(room: RoomModel): EngineFabricObject {
   const roomPolygon = new fabric.Polygon(room.points, {
-    fill: ROOM_FILL,
+    fill: 'transparent',
     stroke: ROOM_STROKE,
     strokeWidth: 0.01,
     objectCaching: false,

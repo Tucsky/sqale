@@ -194,6 +194,7 @@ function getIconComponent(layerType: LayerType) {
               class="h-7 min-w-0 flex-1"
               @keydown.enter="commitRename"
               @blur="commitRename"
+              @dblclick.stop
             />
             <span v-else data-layer-name class="min-w-0 mr-auto truncate" @dblclick.stop="beginRename(row.node)">
               {{ row.node.name }}
