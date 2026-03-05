@@ -10,8 +10,8 @@ import ObjectEditDialog from '@/components/dialogs/ObjectEditDialog.vue'
 import ScaleDialog from '@/components/dialogs/ScaleDialog.vue'
 import SettingsDialog from '@/components/dialogs/SettingsDialog.vue'
 import { CanvasEngine, type LayerEditSnapshot } from '@/core/canvasEngine'
+import { useCanvasClipboard } from '@/composables/useCanvasClipboard'
 import { cloneFloorModel } from '@/core/floorClone'
-import { createId } from '@/lib/utils'
 import {
   bootstrapFloorState,
   createEmptyFloor,
@@ -43,7 +43,18 @@ const gridVisible = computed(() => currentFloor.value?.grid.visible ?? false)
 const gridSpacing = computed(() => currentFloor.value?.grid.spacingMeters ?? 0.5)
 const gridSnap = computed(() => currentFloor.value?.grid.snap ?? false)
 const metersPerPixel = computed(() => currentFloor.value?.scale.metersPerPixel ?? 0.01)
+const { bindClipboardHandlers, unbindClipboardHandlers, handlePlanUpload } = useCanvasClipboard({
+  canvasEngine,
+  currentFloor,
+  deleteSelectedObject,
+  floors,
+  selectedLayerSnapshot,
+  selectedLayerId,
+  syncSelectedLayerSnapshot,
+  selectFloor,
+})
 onMounted(async () => {
+  bindClipboardHandlers()
   const bootstrappedState = await bootstrapFloorState()
   floors.value = bootstrappedState.floors
   currentFloor.value = bootstrappedState.currentFloor
@@ -53,6 +64,7 @@ onMounted(async () => {
   }
 })
 onBeforeUnmount(() => {
+  unbindClipboardHandlers()
   if (persistTimer) {
     clearTimeout(persistTimer)
   }
@@ -75,6 +87,9 @@ function setupCanvasEngine(canvasElement: HTMLCanvasElement): void {
     onSelectionChanged(layerId) {
       selectedLayerId.value = layerId
       syncSelectedLayerSnapshot()
+    },
+    onLayerDoubleClicked(layerId) {
+      openLayerEdit(layerId)
     },
     onCalibrationMeasured(calibration) {
       measuredCalibrationDistance.value = calibration.measuredDistance
@@ -209,38 +224,12 @@ function openScaleDialog(): void {
   }
   scaleDialogOpen.value = true
 }
-async function handlePlanUpload(file: File): Promise<void> {
-  const reader = new FileReader()
-  const fileDataUrl = await new Promise<string>((resolve, reject) => {
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result)
-      } else {
-        reject(new Error('Could not read image file'))
-      }
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('Image upload failed'))
-    reader.readAsDataURL(file)
-  })
-  canvasEngine.value?.updatePlanImage({
-    id: createId('plan'),
-    name: 'Plan Image',
-    dataUrl: fileDataUrl,
-    position: { x: 0, y: 0 },
-    rotationDeg: 0,
-    scaleX: 1,
-    scaleY: 1,
-    opacity: 1,
-    locked: false,
-    visible: true,
-  })
-}
 function addFurniture(): void {
   if (!canvasEngine.value || !currentFloor.value) {
     return
   }
   const roomMatch = currentFloor.value.rooms.find((room) => room.id === selectedLayerId.value)
-  canvasEngine.value.addFurniture(roomMatch?.id ?? null)
+  canvasEngine.value.addFurniture(roomMatch?.id ?? null, canvasEngine.value.getViewportCenter())
 }
 function openLayerEdit(layerId: string): void {
   if (!canvasEngine.value) {
@@ -285,6 +274,12 @@ function deleteLayerFromPanel(layerId: string): void {
     selectedLayerSnapshot.value = null
     objectEditDialogOpen.value = false
   }
+}
+function deleteSelectedObject(): void {
+  if (!selectedLayerSnapshot.value) {
+    return
+  }
+  deleteLayerFromPanel(selectedLayerSnapshot.value.id)
 }
 async function createFloorFromDialog(name: string): Promise<void> {
   const newFloor = createEmptyFloor(name)

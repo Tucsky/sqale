@@ -11,7 +11,11 @@ The app runs fully client-side: no backend, no API. All project data is persiste
 - Calibrate scale from two picked points and a known real-world distance.
 - Draw editable room polygons and compute area (`m²`) with the shoelace formula.
 - Show live room draft surface in the ongoing action bar once the polygon is closed.
-- Add furniture as transformable rectangles (move/resize/rotate).
+- Add furniture as transformable rectangles (move/resize/rotate), spawned at the current viewport center.
+- Open furniture editing by double-clicking furniture on the canvas.
+- Copy/paste selected furniture with keyboard shortcuts (`Cmd/Ctrl+C`, `Cmd/Ctrl+V`).
+- Delete the selected object with keyboard shortcuts (`Delete` or `Cmd+Backspace`).
+- Paste images from clipboard to set the current floor plan when empty, or create a new floor with that pasted plan when occupied.
 - Navigate with viewport pan + wheel zoom (viewport transform, not per-object moves).
 - Show a meter-based grid overlay (`0.25`, `0.5`, `1` m) with optional snapping.
 - Manage multiple floors (create/select/rename/delete) in local storage.
@@ -41,6 +45,7 @@ The app runs fully client-side: no backend, no API. All project data is persiste
 - `components/LayerPanel.vue`: floating layer tree with contextual actions and rename/edit flows.
 - `components/OngoingActionBar.vue`: contextual action UI (calibration, room draft, selected object sizing).
 - `components/dialogs/*`: scale calibration, floors, settings, generic object edit.
+- `composables/useCanvasClipboard.ts`: keyboard/paste interaction orchestration for canvas selection actions.
 
 ### Engine layer (Fabric, framework-independent)
 
@@ -65,6 +70,8 @@ Supporting modules:
 - `layerModel.ts`: layer tree projection
 - `viewport.ts`, `viewportFit.ts`: camera behavior
 - `floorClone.ts`: deterministic floor cloning for safe emits
+- `canvasClipboard.ts`: keybinding + paste event parsing for object/image clipboard interactions
+- `planImageUpload.ts`: reusable image upload/paste model construction helpers
 
 ### Storage layer
 
@@ -95,8 +102,10 @@ Vue components interact with Fabric only through the engine API:
 - `updatePlanImage(planImage)`
 - `startRoomDrawing()`, `cancelRoomDrawing()`, `commitRoom(name)`
 - `startCalibration()`, `cancelCalibration()`, `setScale(realDistanceMeters)`
-- `addFurniture(roomId?)`
+- `addFurniture(roomId?, position?)`
+- `insertFurniture(furniture)`
 - `getLayerEditSnapshot(id)`
+- `getViewportCenter()`
 - `selectObject(id)`
 - `toggleVisibility(id)`, `toggleLock(id)`, `renameLayer(id, name)`, `deleteLayer(id)`
 - `updateLayerFrame(id, x, y, width, height)`, `updateLayerOpacity(id, value)`

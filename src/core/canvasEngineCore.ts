@@ -27,6 +27,7 @@ import {
   LayerType,
   type CalibrationResult,
   type FloorModel,
+  type FurnitureModel,
   type LayerNode,
   type PlanImageModel,
   type PointMeters,
@@ -36,6 +37,7 @@ export interface CanvasEngineCallbacks {
   onFloorUpdated?: (floor: FloorModel) => void
   onLayerTreeChanged?: (layerTree: LayerNode) => void
   onSelectionChanged?: (layerId: string | null) => void
+  onLayerDoubleClicked?: (layerId: string) => void
   onCalibrationMeasured?: (calibration: CalibrationResult) => void
   onRoomDraftChanged?: (draft: { isClosed: boolean; areaSqm: number }) => void
 }
@@ -142,11 +144,17 @@ export class CanvasEngineCore {
     this.removeDraftRoom()
     this.emitChange()
   }
-  addFurniture(targetRoomId: string | null = null): void {
+  addFurniture(targetRoomId: string | null = null, spawnPosition: PointMeters = { x: 0, y: 0 }): void {
     if (!this.floor) {
       return
     }
-    const furniture = createFurnitureTemplate(this.floor, targetRoomId)
+    const furniture = createFurnitureTemplate(this.floor, targetRoomId, spawnPosition)
+    this.insertFurniture(furniture)
+  }
+  insertFurniture(furniture: FurnitureModel): void {
+    if (!this.floor) {
+      return
+    }
     this.floor.furnitures.push(furniture)
     const furnitureObject = createFurnitureObject(furniture)
     this.objectById.set(furniture.id, furnitureObject)

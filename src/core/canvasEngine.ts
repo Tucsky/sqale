@@ -6,7 +6,7 @@ import { distanceMeters } from '@/core/geometry'
 import { getDraftRoomAreaSqm } from '@/core/roomDraft'
 import { clamp } from '@/lib/utils'
 import { panViewport, zoomFromWheel } from '@/core/viewport'
-import { EngineMode, LayerType } from '@/types/domain'
+import { EngineMode, LayerType, type PointMeters } from '@/types/domain'
 import { CanvasEngineCore, type CanvasEngineCallbacks } from './canvasEngineCore'
 import { applyLayerFrameToSceneObject, buildLayerEditSnapshot, type LayerEditSnapshot } from './layerEditing'
 export type { LayerEditSnapshot } from './layerEditing'
@@ -73,6 +73,15 @@ export class CanvasEngine extends CanvasEngineCore {
       this.draftOverlays.resetCalibration(this.canvas)
       this.deactivateSketchMode()
     }
+  }
+  getViewportCenter(): PointMeters {
+    const viewportTransform = this.canvas.viewportTransform
+    if (!viewportTransform) {
+      return { x: 0, y: 0 }
+    }
+    const canvasCenter = new fabric.Point(this.canvas.getWidth() * 0.5, this.canvas.getHeight() * 0.5)
+    const sceneCenter = fabric.util.transformPoint(canvasCenter, fabric.util.invertTransform(viewportTransform))
+    return { x: sceneCenter.x, y: sceneCenter.y }
   }
   getLayerEditSnapshot(layerId: string | null): LayerEditSnapshot | null {
     if (!this.floor || !layerId) {
@@ -142,6 +151,7 @@ export class CanvasEngine extends CanvasEngineCore {
     this.canvas.on('mouse:down', this.onMouseDown)
     this.canvas.on('mouse:move', this.onMouseMove)
     this.canvas.on('mouse:up', this.onMouseUp)
+    this.canvas.on('mouse:dblclick', this.onMouseDoubleClick)
     this.canvas.on('selection:created', this.onSelectionChanged)
     this.canvas.on('selection:updated', this.onSelectionChanged)
     this.canvas.on('selection:cleared', () => this.callbacks.onSelectionChanged?.(null))
@@ -201,6 +211,13 @@ export class CanvasEngine extends CanvasEngineCore {
     this.isPanning = false
     this.canvas.selection = !this.sketchModeActive
     this.syncSceneCoords()
+  }
+  private readonly onMouseDoubleClick = (event: fabric.IEvent<MouseEvent>): void => {
+    const targetObject = event.target as EngineFabricObject | undefined
+    if (!targetObject?.sqaleId || targetObject.sqaleType !== LayerType.Furniture) {
+      return
+    }
+    this.callbacks.onLayerDoubleClicked?.(targetObject.sqaleId)
   }
   private readonly onSelectionChanged = (event: fabric.IEvent<Event>): void => {
     if (!event.selected || event.selected.length === 0) {

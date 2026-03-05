@@ -42,17 +42,77 @@ export function applyScaleCalibration(
   return true
 }
 
-export function createFurnitureTemplate(floor: FloorModel, roomId: string | null): FurnitureModel {
+export function createFurnitureTemplate(
+  floor: FloorModel,
+  roomId: string | null,
+  position: PointMeters = { x: 0, y: 0 },
+): FurnitureModel {
   return {
     id: createId('furniture'),
     label: `Furniture ${floor.furnitures.length + 1}`,
     fillColor: DEFAULT_FURNITURE_FILL_COLOR,
-    position: { x: 0, y: 0 },
+    position: { x: position.x, y: position.y },
     widthMeters: 1,
     depthMeters: 0.6,
     rotationDeg: 0,
     roomId,
     opacity: 1,
+    locked: false,
+    visible: true,
+  }
+}
+
+/**
+ * Clones furniture data into a plain object so clipboard operations avoid proxy cloning errors.
+ */
+export function cloneFurnitureModel(furniture: FurnitureModel): FurnitureModel {
+  return {
+    id: furniture.id,
+    label: furniture.label,
+    fillColor: furniture.fillColor,
+    position: {
+      x: furniture.position.x,
+      y: furniture.position.y,
+    },
+    widthMeters: furniture.widthMeters,
+    depthMeters: furniture.depthMeters,
+    rotationDeg: furniture.rotationDeg,
+    roomId: furniture.roomId,
+    opacity: furniture.opacity,
+    locked: furniture.locked,
+    visible: furniture.visible,
+  }
+}
+
+/**
+ * Duplicates a furniture model at a new position while preserving its editable appearance.
+ */
+export function duplicateFurniture(
+  floor: FloorModel,
+  sourceFurniture: FurnitureModel,
+  nextPosition: PointMeters,
+): FurnitureModel {
+  const sourceRoomId = sourceFurniture.roomId
+  const matchingRoomId =
+    sourceRoomId && floor.rooms.some((room) => room.id === sourceRoomId) ? sourceRoomId : null
+  const trimmedLabel = sourceFurniture.label.trim()
+  const duplicatedLabel = trimmedLabel
+    ? `${trimmedLabel}`
+    : `Furniture ${floor.furnitures.length + 1}`
+
+  return {
+    id: createId('furniture'),
+    label: duplicatedLabel,
+    fillColor: sourceFurniture.fillColor,
+    position: {
+      x: nextPosition.x,
+      y: nextPosition.y,
+    },
+    widthMeters: sourceFurniture.widthMeters,
+    depthMeters: sourceFurniture.depthMeters,
+    rotationDeg: sourceFurniture.rotationDeg,
+    roomId: matchingRoomId,
+    opacity: sourceFurniture.opacity,
     locked: false,
     visible: true,
   }

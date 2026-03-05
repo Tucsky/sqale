@@ -1,7 +1,17 @@
+import { reactive } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import type { EngineFabricObject } from '@/core/canvasObjects'
-import { applyFurnitureTransform, applyScaleCalibration, removeLayer, setFurnitureFillColor, setLayerOpacity } from '@/core/floorActions'
+import {
+  applyFurnitureTransform,
+  applyScaleCalibration,
+  cloneFurnitureModel,
+  createFurnitureTemplate,
+  duplicateFurniture,
+  removeLayer,
+  setFurnitureFillColor,
+  setLayerOpacity,
+} from '@/core/floorActions'
 import type { FloorModel } from '@/types/domain'
 
 const floorFixture: FloorModel = {
@@ -109,5 +119,51 @@ describe('floorActions', () => {
 
     expect(setFurnitureFillColor(floor, 'furniture_1', '#abc')).toBe(true)
     expect(floor.furnitures[0]?.fillColor).toBe('#aabbcc')
+  })
+
+  it('creates furniture at the provided insertion position', () => {
+    const floor = structuredClone(floorFixture)
+    const template = createFurnitureTemplate(floor, null, { x: 3.75, y: 2.25 })
+
+    expect(template.position).toEqual({ x: 3.75, y: 2.25 })
+  })
+
+  it('duplicates furniture with preserved geometry and valid room assignment', () => {
+    const floor = structuredClone(floorFixture)
+    const sourceFurniture = floor.furnitures[0]
+    expect(sourceFurniture).toBeDefined()
+    if (!sourceFurniture) {
+      return
+    }
+
+    const copiedFurniture = duplicateFurniture(floor, sourceFurniture, { x: 8, y: 6 })
+
+    expect(copiedFurniture.id).not.toBe(sourceFurniture.id)
+    expect(copiedFurniture.label).toBe(sourceFurniture.label)
+    expect(copiedFurniture.position).toEqual({ x: 8, y: 6 })
+    expect(copiedFurniture.widthMeters).toBe(sourceFurniture.widthMeters)
+    expect(copiedFurniture.depthMeters).toBe(sourceFurniture.depthMeters)
+    expect(copiedFurniture.rotationDeg).toBe(sourceFurniture.rotationDeg)
+    expect(copiedFurniture.fillColor).toBe(sourceFurniture.fillColor)
+    expect(copiedFurniture.roomId).toBe('room_1')
+    expect(copiedFurniture.locked).toBe(false)
+    expect(copiedFurniture.visible).toBe(true)
+
+    floor.rooms = []
+    const copiedWithoutRoom = duplicateFurniture(floor, sourceFurniture, { x: 1, y: 1 })
+    expect(copiedWithoutRoom.roomId).toBeNull()
+  })
+
+  it('clones reactive furniture models without DataCloneError', () => {
+    const sourceFurniture = floorFixture.furnitures[0]
+    expect(sourceFurniture).toBeDefined()
+    if (!sourceFurniture) {
+      return
+    }
+    const reactiveFurniture = reactive(structuredClone(sourceFurniture))
+    const copiedFurniture = cloneFurnitureModel(reactiveFurniture)
+
+    expect(copiedFurniture).toEqual(sourceFurniture)
+    expect(copiedFurniture).not.toBe(reactiveFurniture)
   })
 })
