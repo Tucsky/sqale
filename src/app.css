@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 30% 98%;
+  --foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 40%;
+  --border: 214 28% 86%;
+  --input: 214 32% 90%;
+  --ring: 198 82% 41%;
+  --primary: 197 83% 46%;
+  --primary-foreground: 210 40% 98%;
+  --accent: 204 94% 94%;
+  --accent-foreground: 222 47% 18%;
+  --radius: 0.8rem;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply m-0 min-h-screen bg-background font-sans text-foreground antialiased;
+}
+
+#app {
+  @apply min-h-screen;
+}
+
+.canvas-bg {
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(125, 211, 252, 0.35) 0%, transparent 38%),
+    radial-gradient(circle at 90% 15%, rgba(20, 184, 166, 0.18) 0%, transparent 36%),
+    linear-gradient(165deg, #f8fbff 0%, #eff7ff 45%, #e9f3ff 100%);
+}
