@@ -50,6 +50,7 @@ export function createFurnitureTemplate(floor: FloorModel, roomId: string | null
     depthMeters: 0.6,
     rotationDeg: 0,
     roomId,
+    opacity: 1,
     locked: false,
     visible: true,
   }
@@ -127,8 +128,59 @@ export function renameLayer(floor: FloorModel, layerId: string, nextName: string
   return false
 }
 
+/**
+ * Deletes a layer while keeping furniture records valid when their parent room is removed.
+ */
+export function removeLayer(floor: FloorModel, layerId: string): boolean {
+  if (floor.planImage?.id === layerId) {
+    floor.planImage = null
+    return true
+  }
+
+  const roomIndex = floor.rooms.findIndex((candidate) => candidate.id === layerId)
+  if (roomIndex >= 0) {
+    floor.rooms.splice(roomIndex, 1)
+    for (const furniture of floor.furnitures) {
+      if (furniture.roomId === layerId) {
+        furniture.roomId = null
+      }
+    }
+    return true
+  }
+
+  const furnitureIndex = floor.furnitures.findIndex((candidate) => candidate.id === layerId)
+  if (furnitureIndex >= 0) {
+    floor.furnitures.splice(furnitureIndex, 1)
+    return true
+  }
+
+  return false
+}
+
+export function setLayerOpacity(floor: FloorModel, layerId: string, opacity: number): boolean {
+  if (floor.planImage?.id === layerId) {
+    floor.planImage.opacity = opacity
+    return true
+  }
+
+  const room = floor.rooms.find((candidate) => candidate.id === layerId)
+  if (room) {
+    room.opacity = opacity
+    return true
+  }
+
+  const furniture = floor.furnitures.find((candidate) => candidate.id === layerId)
+  if (furniture) {
+    furniture.opacity = opacity
+    return true
+  }
+
+  return false
+}
+
 export interface FurnitureMutationResult {
   depthMeters: number
+  opacity: number
   position: PointMeters
   roomId: string | null
   rotationDeg: number
@@ -152,6 +204,7 @@ export function applyFurnitureTransform(
   furniture.depthMeters = (targetObject.height ?? furniture.depthMeters) * (targetObject.scaleY ?? 1)
   furniture.position = { x: targetObject.left ?? 0, y: targetObject.top ?? 0 }
   furniture.rotationDeg = targetObject.angle ?? 0
+  furniture.opacity = targetObject.opacity ?? furniture.opacity
 
   if (floor.grid.snap) {
     const spacing = floor.grid.spacingMeters
@@ -166,6 +219,7 @@ export function applyFurnitureTransform(
   return {
     widthMeters: furniture.widthMeters,
     depthMeters: furniture.depthMeters,
+    opacity: furniture.opacity,
     position: furniture.position,
     rotationDeg: furniture.rotationDeg,
     roomId: furniture.roomId,

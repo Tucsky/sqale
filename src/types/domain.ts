@@ -40,6 +40,8 @@ export interface PlanImageModel {
   dataUrl: string
   position: PointMeters
   rotationDeg: number
+  scaleX: number
+  scaleY: number
   opacity: number
   locked: boolean
   visible: boolean
@@ -50,6 +52,7 @@ export interface RoomModel {
   name: string
   points: PointMeters[]
   areaSqm: number
+  opacity: number
   locked: boolean
   visible: boolean
 }
@@ -62,6 +65,7 @@ export interface FurnitureModel {
   depthMeters: number
   rotationDeg: number
   roomId: string | null
+  opacity: number
   locked: boolean
   visible: boolean
 }

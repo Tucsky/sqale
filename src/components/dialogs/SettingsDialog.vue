@@ -1,46 +1,104 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Settings } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { GRID_SPACING_OPTIONS, type GridSpacing } from '@/types/domain'
 
 const props = defineProps<{
   open: boolean
   metersPerPixel: number
+  gridVisible: boolean
+  gridSpacing: GridSpacing
   gridSnap: boolean
 }>()
 
 const emit = defineEmits<{
   close: []
+  updateGridVisible: [enabled: boolean]
+  updateGridSpacing: [spacing: GridSpacing]
   updateGridSnap: [enabled: boolean]
 }>()
+
+const spacingValue = computed(() => String(props.gridSpacing))
+
+function updateGridVisibility(checked: boolean | 'indeterminate'): void {
+  emit('updateGridVisible', checked === true)
+}
+
+function updateGridSnap(checked: boolean | 'indeterminate'): void {
+  emit('updateGridSnap', checked === true)
+}
+
+function updateGridSpacing(value: unknown): void {
+  const nextSpacing = Number(value)
+  if (!Number.isFinite(nextSpacing)) {
+    return
+  }
+
+  emit('updateGridSpacing', nextSpacing as GridSpacing)
+}
 </script>
 
 <template>
-  <div v-if="props.open" class="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/30 p-4">
-    <div class="w-full max-w-md rounded-xl border border-border bg-white p-5 shadow-xl">
-      <div class="mb-4 flex items-center gap-2 text-lg font-semibold">
-        <Settings class="h-5 w-5" />
-        Settings
-      </div>
+  <Dialog :open="props.open" @update:open="(value) => !value && emit('close')">
+    <DialogContent class="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <Settings class="h-5 w-5" />
+          Settings
+        </DialogTitle>
+        <DialogDescription>Current scale and grid settings for this floor.</DialogDescription>
+      </DialogHeader>
 
-      <div class="space-y-3 text-sm">
-        <div class="rounded-lg bg-muted p-3">
+      <div class="space-y-4">
+        <div class="rounded-md border bg-muted/40 p-3 text-sm">
           Current scale: <strong>1 px = {{ props.metersPerPixel.toFixed(4) }} m</strong>
         </div>
 
-        <label class="flex items-center gap-2 rounded-lg border border-border p-3">
-          <input
-            type="checkbox"
-            :checked="props.gridSnap"
-            @change="emit('updateGridSnap', ($event.target as HTMLInputElement).checked)"
-          />
-          Enable grid snapping when moving furniture
-        </label>
+        <section class="space-y-3 rounded-md border p-3">
+          <div class="text-sm font-medium">Grid</div>
+
+          <div class="flex items-center gap-2">
+            <Checkbox :checked="props.gridVisible" @update:checked="updateGridVisibility" />
+            <Label>Show grid</Label>
+          </div>
+
+          <div class="space-y-1">
+            <Label>Spacing</Label>
+            <Select :model-value="spacingValue" @update:model-value="updateGridSpacing">
+              <SelectTrigger>
+                <SelectValue placeholder="Select grid spacing" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="spacing in GRID_SPACING_OPTIONS" :key="spacing" :value="String(spacing)">
+                  {{ spacing }} m
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <Checkbox :checked="props.gridSnap" @update:checked="updateGridSnap" />
+            <Label>Snap to grid</Label>
+          </div>
+        </section>
       </div>
 
-      <div class="mt-5 flex justify-end">
+      <DialogFooter>
         <Button variant="secondary" @click="emit('close')">Close</Button>
-      </div>
-    </div>
-  </div>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>

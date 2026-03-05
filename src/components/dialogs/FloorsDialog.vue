@@ -3,6 +3,13 @@ import { ref } from 'vue'
 import { Layers, Plus, Trash2 } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import type { FloorModel } from '@/types/domain'
 
@@ -55,14 +62,16 @@ function commitRename(): void {
 </script>
 
 <template>
-  <div v-if="props.open" class="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/30 p-4">
-    <div class="w-full max-w-xl rounded-xl border border-border bg-white p-5 shadow-xl">
-      <div class="mb-4 flex items-center gap-2 text-lg font-semibold">
-        <Layers class="h-5 w-5" />
-        Floors management
-      </div>
+  <Dialog :open="props.open" @update:open="(value) => !value && emit('close')">
+    <DialogContent class="sm:max-w-xl">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <Layers class="h-5 w-5" />
+          Floors management
+        </DialogTitle>
+      </DialogHeader>
 
-      <div class="max-h-72 space-y-2 overflow-y-auto">
+      <div class="max-h-72 space-y-2 overflow-y-auto pr-1">
         <div
           v-for="floor in props.floors"
           :key="floor.id"
@@ -100,9 +109,9 @@ function commitRename(): void {
         </Button>
       </div>
 
-      <div class="mt-5 flex justify-end">
+      <DialogFooter>
         <Button variant="secondary" @click="emit('close')">Close</Button>
-      </div>
-    </div>
-  </div>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>

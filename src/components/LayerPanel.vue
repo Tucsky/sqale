@@ -10,10 +10,21 @@ import {
   Image,
   Layers,
   Lock,
+  Pencil,
   Square,
+  Trash2,
   Unlock,
 } from 'lucide-vue-next'
 
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { Input } from '@/components/ui/input'
 import { LayerType, type LayerNode } from '@/types/domain'
 
 interface LayerRow {
@@ -31,6 +42,8 @@ const emit = defineEmits<{
   toggleVisibility: [layerId: string]
   toggleLock: [layerId: string]
   renameLayer: [layerId: string, name: string]
+  deleteLayer: [layerId: string]
+  editLayer: [layerId: string]
 }>()
 
 const collapsedById = ref<Record<string, boolean>>({})
@@ -58,7 +71,6 @@ const layerRows = computed<LayerRow[]>(() => {
 
   const walk = (node: LayerNode, depth: number): void => {
     rows.push({ node, depth })
-
     if (collapsedById.value[node.id]) {
       return
     }
@@ -86,11 +98,11 @@ function initializeExpandedState(rootNode: LayerNode): void {
   walk(rootNode)
 }
 
-function isRenameable(node: LayerNode): boolean {
-  return node.type !== LayerType.Collection
+function isSceneLayer(node: LayerNode): boolean {
+  return node.type === LayerType.PlanImage || node.type === LayerType.Room || node.type === LayerType.Furniture
 }
 
-function canToggle(node: LayerNode): boolean {
+function isRenameable(node: LayerNode): boolean {
   return node.type !== LayerType.Collection
 }
 
@@ -121,6 +133,15 @@ function commitRename(): void {
   editingName.value = ''
 }
 
+function handleRowDoubleClick(event: MouseEvent, node: LayerNode): void {
+  const target = event.target as HTMLElement
+  if (target.closest('[data-layer-name]') || !isSceneLayer(node)) {
+    return
+  }
+
+  emit('editLayer', node.id)
+}
+
 function getIconComponent(layerType: LayerType) {
   switch (layerType) {
     case LayerType.Floor:
@@ -141,58 +162,87 @@ function getIconComponent(layerType: LayerType) {
 
 <template>
   <aside
-    class="absolute right-4 top-20 z-20 w-72 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-white/95 p-2 shadow-xl backdrop-blur"
+    class="absolute right-4 top-20 z-20 w-72 max-h-[70vh] overflow-y-auto rounded-lg border bg-background/95 p-2 shadow-panel backdrop-blur"
   >
     <div class="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Layers</div>
 
     <div class="space-y-1">
-      <div
-        v-for="row in layerRows"
-        :key="row.node.id"
-        class="group flex items-center gap-1 rounded-md px-1 py-1 text-sm"
-        :class="props.selectedLayerId === row.node.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'"
-        :style="{ paddingLeft: `${row.depth * 14 + 6}px` }"
-        @click="emit('selectLayer', row.node.id)"
-      >
-        <button
-          v-if="row.node.children.length > 0"
-          class="h-5 w-5 rounded hover:bg-white"
-          @click.stop="toggleCollapsed(row.node.id)"
-        >
-          <ChevronRight v-if="collapsedById[row.node.id]" class="h-4 w-4" />
-          <ChevronDown v-else class="h-4 w-4" />
-        </button>
-        <span v-else class="inline-block h-5 w-5" />
+      <ContextMenu v-for="row in layerRows" :key="row.node.id">
+        <ContextMenuTrigger as-child>
+          <div
+            class="group flex items-center gap-1 rounded-md px-1 py-1 text-sm"
+            :class="props.selectedLayerId === row.node.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/70'"
+            :style="{ paddingLeft: `${row.depth * 14 + 6}px` }"
+            @click="emit('selectLayer', row.node.id)"
+            @dblclick="handleRowDoubleClick($event, row.node)"
+          >
+            <button
+              v-if="row.node.children.length > 0"
+              class="h-5 w-5 rounded hover:bg-background"
+              @click.stop="toggleCollapsed(row.node.id)"
+            >
+              <ChevronRight v-if="collapsedById[row.node.id]" class="h-4 w-4" />
+              <ChevronDown v-else class="h-4 w-4" />
+            </button>
+            <span v-else class="inline-block h-5 w-5" />
 
-        <component :is="getIconComponent(row.node.type)" class="h-4 w-4 text-muted-foreground" />
+            <component :is="getIconComponent(row.node.type)" class="h-4 w-4 text-muted-foreground" />
 
-        <input
-          v-if="editingLayerId === row.node.id"
-          v-model="editingName"
-          class="h-7 min-w-0 flex-1 rounded border border-input px-2 text-sm"
-          @keydown.enter="commitRename"
-          @blur="commitRename"
-        />
-        <span v-else class="min-w-0 flex-1 truncate" @dblclick.stop="beginRename(row.node)">{{ row.node.name }}</span>
+            <Input
+              v-if="editingLayerId === row.node.id"
+              v-model="editingName"
+              class="h-7 min-w-0 flex-1"
+              @keydown.enter="commitRename"
+              @blur="commitRename"
+            />
+            <span v-else data-layer-name class="min-w-0 mr-auto truncate" @dblclick.stop="beginRename(row.node)">
+              {{ row.node.name }}
+            </span>
 
-        <button
-          class="h-6 w-6 rounded hover:bg-white"
-          :disabled="!canToggle(row.node)"
-          @click.stop="emit('toggleVisibility', row.node.id)"
-        >
-          <Eye v-if="row.node.visible" class="h-4 w-4" />
-          <EyeOff v-else class="h-4 w-4" />
-        </button>
+            <template v-if="isSceneLayer(row.node)">
+              <Button
+                size="icon"
+                variant="ghost"
+                class="h-8 w-8"
+                @click.stop="emit('toggleLock', row.node.id)"
+              >
+                <Lock v-if="row.node.locked" class="h-4 w-4" />
+                <Unlock v-else class="h-4 w-4" />
+              </Button>
 
-        <button
-          class="h-6 w-6 rounded hover:bg-white"
-          :disabled="!canToggle(row.node)"
-          @click.stop="emit('toggleLock', row.node.id)"
-        >
-          <Lock v-if="row.node.locked" class="h-4 w-4" />
-          <Unlock v-else class="h-4 w-4" />
-        </button>
-      </div>
+              <Button size="icon" variant="ghost" class="h-8 w-8" @click.stop="emit('deleteLayer', row.node.id)">
+                <Trash2 class="h-4 w-4 text-destructive" />
+              </Button>
+            </template>
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent v-if="isSceneLayer(row.node)" class="w-44">
+          <ContextMenuItem @select="emit('toggleVisibility', row.node.id)">
+            <Eye v-if="row.node.visible" class="mr-2 h-4 w-4" />
+            <EyeOff v-else class="mr-2 h-4 w-4" />
+            {{ row.node.visible ? 'Hide' : 'Show' }}
+          </ContextMenuItem>
+
+          <ContextMenuItem @select="emit('toggleLock', row.node.id)">
+            <Lock v-if="row.node.locked" class="mr-2 h-4 w-4" />
+            <Unlock v-else class="mr-2 h-4 w-4" />
+            {{ row.node.locked ? 'Unlock' : 'Lock' }}
+          </ContextMenuItem>
+
+          <ContextMenuSeparator />
+
+          <ContextMenuItem @select="emit('editLayer', row.node.id)">
+            <Pencil class="mr-2 h-4 w-4" />
+            Edit
+          </ContextMenuItem>
+
+          <ContextMenuItem class="text-destructive focus:text-destructive" @select="emit('deleteLayer', row.node.id)">
+            <Trash2 class="mr-2 h-4 w-4" />
+            Remove
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   </aside>
 </template>

@@ -151,7 +151,7 @@ export class DraftOverlays {
     this.roomDraftPolyline = new fabric.Polyline(this.toFabricPoints(this.getRoomPreviewPoints(draftRoomPoints)), {
       fill: this.roomClosed ? 'rgba(56, 189, 248, 0.14)' : 'rgba(56, 189, 248, 0.06)',
       stroke: '#0284c7',
-      strokeWidth: 0.04,
+      strokeWidth: 0.01,
       selectable: false,
       evented: false,
       objectCaching: false,

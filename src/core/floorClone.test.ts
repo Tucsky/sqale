@@ -13,6 +13,8 @@ const floorFixture: FloorModel = {
     dataUrl: 'data:image/png;base64,abc',
     position: { x: 0, y: 0 },
     rotationDeg: 0,
+    scaleX: 1,
+    scaleY: 1,
     opacity: 1,
     locked: false,
     visible: true,

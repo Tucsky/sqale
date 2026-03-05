@@ -18,9 +18,6 @@ export function createPlanImageObject(
 ): Promise<EngineFabricObject> {
   return new Promise((resolve) => {
     fabric.Image.fromURL(planImage.dataUrl, (rawImage) => {
-      const widthPixels = rawImage.width ?? 1
-      const heightPixels = rawImage.height ?? 1
-
       const planObject = rawImage as EngineFabricObject
       planObject.set({
         left: planImage.position.x,
@@ -34,8 +31,8 @@ export function createPlanImageObject(
         evented: !planImage.locked,
         hasBorders: !planImage.locked,
         hasControls: !planImage.locked,
-        scaleX: (widthPixels * metersPerPixel) / widthPixels,
-        scaleY: (heightPixels * metersPerPixel) / heightPixels,
+        scaleX: metersPerPixel * planImage.scaleX,
+        scaleY: metersPerPixel * planImage.scaleY,
       })
 
       planObject.sqaleId = planImage.id
@@ -49,11 +46,12 @@ export function createRoomObject(room: RoomModel): EngineFabricObject {
   const roomPolygon = new fabric.Polygon(room.points, {
     fill: ROOM_FILL,
     stroke: ROOM_STROKE,
-    strokeWidth: 0.05,
+    strokeWidth: 0.01,
     objectCaching: false,
     selectable: !room.locked,
     evented: !room.locked,
     visible: room.visible,
+    opacity: room.opacity,
     hasBorders: true,
     hasControls: true,
     transparentCorners: false,
@@ -74,12 +72,13 @@ export function createFurnitureObject(furniture: FurnitureModel): EngineFabricOb
     angle: furniture.rotationDeg,
     fill: FURNITURE_FILL,
     stroke: FURNITURE_STROKE,
-    strokeWidth: 0.04,
+    strokeWidth: 0.01,
     originX: 'center',
     originY: 'center',
     selectable: !furniture.locked,
     evented: !furniture.locked,
     visible: furniture.visible,
+    opacity: furniture.opacity,
     transparentCorners: false,
     cornerStyle: 'circle',
     lockUniScaling: false,

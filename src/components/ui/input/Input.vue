@@ -1,41 +1,24 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed, useAttrs } from 'vue'
-
 import { cn } from '@/lib/utils'
-
-defineOptions({
-  inheritAttrs: false,
-})
+import { useVModel } from '@vueuse/core'
 
 const props = defineProps<{
-  class?: HTMLAttributes['class']
+  defaultValue?: string | number
   modelValue?: string | number
+  class?: HTMLAttributes['class']
 }>()
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
+const emits = defineEmits<{
+  (e: 'update:modelValue', payload: string | number): void
 }>()
 
-const attrs = useAttrs()
-const forwardedValue = computed(() => props.modelValue ?? attrs.value ?? '')
-
-function onInput(event: Event): void {
-  const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
-}
+const modelValue = useVModel(props, 'modelValue', emits, {
+  passive: true,
+  defaultValue: props.defaultValue,
+})
 </script>
 
 <template>
-  <input
-    v-bind="attrs"
-    :value="forwardedValue"
-    :class="
-      cn(
-        'h-9 w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-        props.class,
-      )
-    "
-    @input="onInput"
-  />
+  <input v-model="modelValue" :class="cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', props.class)">
 </template>

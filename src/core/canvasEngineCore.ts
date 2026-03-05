@@ -36,6 +36,7 @@ export interface CanvasEngineCallbacks {
   onLayerTreeChanged?: (layerTree: LayerNode) => void
   onSelectionChanged?: (layerId: string | null) => void
   onCalibrationMeasured?: (calibration: CalibrationResult) => void
+  onRoomDraftChanged?: (draft: { isClosed: boolean; areaSqm: number }) => void
 }
 export class CanvasEngineCore {
   protected canvas: fabric.Canvas
@@ -78,19 +79,16 @@ export class CanvasEngineCore {
     void this.refreshScene(true)
     this.emitLayerTree()
   }
-
   startCalibration(): void {
     this.mode = EngineMode.CalibrateScale
     this.calibrationPoints = []
     this.canvas.discardActiveObject()
     this.canvas.requestRenderAll()
   }
-
   cancelCalibration(): void {
     this.mode = EngineMode.Idle
     this.calibrationPoints = []
   }
-
   setScale(realDistanceMeters: number): void {
     if (!this.floor || this.calibrationPoints.length !== 2) {
       return
@@ -108,7 +106,6 @@ export class CanvasEngineCore {
     void this.refreshScene(false)
     this.emitChange()
   }
-
   startRoomDrawing(): void {
     this.mode = EngineMode.DrawRoom
     this.draftRoomPoints = []
@@ -116,14 +113,12 @@ export class CanvasEngineCore {
     this.canvas.discardActiveObject()
     this.canvas.requestRenderAll()
   }
-
   cancelRoomDrawing(): void {
     this.mode = EngineMode.Idle
     this.draftRoomPoints = []
     this.removeDraftRoom()
     this.canvas.requestRenderAll()
   }
-
   commitRoom(name: string): void {
     if (!this.floor || this.draftRoomPoints.length < 3) {
       return
@@ -133,6 +128,7 @@ export class CanvasEngineCore {
       name,
       points: [...this.draftRoomPoints],
       areaSqm: computePolygonAreaSqm(this.draftRoomPoints),
+      opacity: 1,
       locked: false,
       visible: true,
     }
@@ -145,7 +141,6 @@ export class CanvasEngineCore {
     this.removeDraftRoom()
     this.emitChange()
   }
-
   addFurniture(targetRoomId: string | null = null): void {
     if (!this.floor) {
       return
@@ -158,7 +153,6 @@ export class CanvasEngineCore {
     this.canvas.setActiveObject(furnitureObject)
     this.emitChange()
   }
-
   setGridVisible(isVisible: boolean): void {
     if (!this.floor) {
       return
@@ -167,7 +161,6 @@ export class CanvasEngineCore {
     this.canvas.requestRenderAll()
     this.emitChange()
   }
-
   setGridSpacing(spacingMeters: 0.25 | 0.5 | 1): void {
     if (!this.floor) {
       return
@@ -176,7 +169,6 @@ export class CanvasEngineCore {
     this.canvas.requestRenderAll()
     this.emitChange()
   }
-
   setGridSnap(enabled: boolean): void {
     if (!this.floor) {
       return
@@ -184,7 +176,6 @@ export class CanvasEngineCore {
     this.floor.grid.snap = enabled
     this.emitChange()
   }
-
   updatePlanOpacity(opacity: number): void {
     if (!this.floor?.planImage) {
       return
@@ -197,7 +188,6 @@ export class CanvasEngineCore {
     }
     this.emitChange()
   }
-
   rotatePlan(deltaDeg: number): void {
     if (!this.floor?.planImage) {
       return
@@ -210,7 +200,6 @@ export class CanvasEngineCore {
     }
     this.emitChange()
   }
-
   selectObject(layerId: string): void {
     const targetObject = this.objectById.get(layerId)
     if (!targetObject) {
@@ -221,7 +210,6 @@ export class CanvasEngineCore {
     this.canvas.setActiveObject(targetObject)
     this.canvas.requestRenderAll()
   }
-
   toggleVisibility(layerId: string): void {
     if (!this.floor) {
       return
@@ -233,7 +221,6 @@ export class CanvasEngineCore {
     this.applyObjectVisibility(layerId, visible)
     this.emitChange()
   }
-
   toggleLock(layerId: string): void {
     if (!this.floor) {
       return
@@ -245,7 +232,6 @@ export class CanvasEngineCore {
     this.applyObjectLock(layerId, locked)
     this.emitChange()
   }
-
   renameLayer(layerId: string, nextName: string): void {
     if (!this.floor) {
       return
@@ -254,7 +240,6 @@ export class CanvasEngineCore {
       this.emitChange()
     }
   }
-
   updatePlanImage(planImage: PlanImageModel): void {
     if (!this.floor) {
       return
@@ -263,14 +248,16 @@ export class CanvasEngineCore {
     void this.refreshScene(true)
     this.emitChange()
   }
-
   protected handleObjectModified(targetObject: EngineFabricObject): void {
     if (!this.floor || !targetObject.sqaleId || !targetObject.sqaleType) {
       return
     }
     if (targetObject.sqaleType === LayerType.PlanImage && this.floor.planImage) {
+      const metersPerPixel = this.floor.scale.metersPerPixel
       this.floor.planImage.position = { x: targetObject.left ?? 0, y: targetObject.top ?? 0 }
       this.floor.planImage.rotationDeg = targetObject.angle ?? 0
+      this.floor.planImage.scaleX = (targetObject.scaleX ?? metersPerPixel) / metersPerPixel
+      this.floor.planImage.scaleY = (targetObject.scaleY ?? metersPerPixel) / metersPerPixel
       this.emitChange()
       return
     }
@@ -281,6 +268,7 @@ export class CanvasEngineCore {
       }
       room.points = polygonToWorldPoints(targetObject as fabric.Polygon)
       room.areaSqm = computePolygonAreaSqm(room.points)
+      room.opacity = targetObject.opacity ?? room.opacity
       this.emitChange()
       return
     }
@@ -294,13 +282,13 @@ export class CanvasEngineCore {
         height: result.depthMeters,
         left: result.position.x,
         top: result.position.y,
+        opacity: result.opacity,
         scaleX: 1,
         scaleY: 1,
       })
       this.emitChange()
     }
   }
-
   protected renderDraftRoom(): void {
     this.removeDraftRoom()
     if (this.draftRoomPoints.length === 0) {
@@ -310,7 +298,6 @@ export class CanvasEngineCore {
     this.canvas.add(this.draftRoomObject)
     this.canvas.requestRenderAll()
   }
-
   protected emitChange(): void {
     if (!this.floor) {
       return
@@ -318,14 +305,12 @@ export class CanvasEngineCore {
     this.callbacks.onFloorUpdated?.(cloneFloorModel(this.floor))
     this.emitLayerTree()
   }
-
   protected readonly drawGrid = (): void => {
     if (!this.floor?.grid.visible) {
       return
     }
     drawGridOverlay(this.canvas, this.floor.grid.spacingMeters)
   }
-
   private applyObjectVisibility(layerId: string, visible: boolean): void {
     const targetObject = this.objectById.get(layerId)
     if (!targetObject) {
@@ -334,7 +319,6 @@ export class CanvasEngineCore {
     targetObject.visible = visible
     this.canvas.requestRenderAll()
   }
-
   private applyObjectLock(layerId: string, locked: boolean): void {
     const targetObject = this.objectById.get(layerId)
     if (!targetObject) {
@@ -343,7 +327,6 @@ export class CanvasEngineCore {
     targetObject.set({ selectable: !locked, evented: !locked })
     this.canvas.requestRenderAll()
   }
-
   private async refreshScene(fitPlan: boolean): Promise<void> {
     const revision = ++this.renderRevision
     this.objectById.clear()
@@ -363,7 +346,6 @@ export class CanvasEngineCore {
       this.objectById.set(furniture.id, furnitureObject)
       this.canvas.add(furnitureObject)
     }
-
     if (activeFloor.planImage) {
       const planObject = await createPlanImageObject(activeFloor.planImage, activeFloor.scale.metersPerPixel)
       if (revision !== this.renderRevision) {
@@ -382,7 +364,6 @@ export class CanvasEngineCore {
     this.canvas.calcOffset()
     this.canvas.requestRenderAll()
   }
-
   private removeDraftRoom(): void {
     if (!this.draftRoomObject) {
       return
@@ -390,7 +371,6 @@ export class CanvasEngineCore {
     this.canvas.remove(this.draftRoomObject)
     this.draftRoomObject = null
   }
-
   private emitLayerTree(): void {
     if (!this.floor) {
       return
