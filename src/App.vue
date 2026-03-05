@@ -261,6 +261,10 @@ function applyLayerOpacity(payload: { layerId: string; opacity: number }): void 
   canvasEngine.value?.updateLayerOpacity(payload.layerId, payload.opacity)
   syncSelectedLayerSnapshot()
 }
+function applyLayerColor(payload: { layerId: string; fillColor: string }): void {
+  canvasEngine.value?.updateFurnitureColor(payload.layerId, payload.fillColor)
+  syncSelectedLayerSnapshot()
+}
 function applySelectionSize(payload: { layerId: string; width: number; height: number }): void {
   if (!selectedLayerSnapshot.value || selectedLayerSnapshot.value.id !== payload.layerId) {
     return
@@ -382,6 +386,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       @close="objectEditDialogOpen = false"
       @apply-frame="applyLayerFrame"
       @apply-opacity="applyLayerOpacity"
+      @apply-color="applyLayerColor"
     />
   </main>
 </template>

@@ -1,7 +1,7 @@
 import { fabric } from 'fabric'
-import { snapValue, type EngineFabricObject } from '@/core/canvasObjects'
+import { applyFurniturePaintToSceneObject, snapValue, type EngineFabricObject } from '@/core/canvasObjects'
 import { DraftOverlays, type DraftHandleObject } from '@/core/draftOverlays'
-import { removeLayer, setLayerOpacity } from '@/core/floorActions'
+import { removeLayer, setFurnitureFillColor, setLayerOpacity } from '@/core/floorActions'
 import { distanceMeters } from '@/core/geometry'
 import { getDraftRoomAreaSqm } from '@/core/roomDraft'
 import { clamp } from '@/lib/utils'
@@ -102,6 +102,22 @@ export class CanvasEngine extends CanvasEngineCore {
     const sceneObject = this.objectById.get(layerId)
     if (sceneObject) {
       sceneObject.set('opacity', clampedOpacity)
+      sceneObject.setCoords()
+      this.canvas.requestRenderAll()
+    }
+    this.emitChange()
+  }
+  updateFurnitureColor(layerId: string, fillColor: string): void {
+    if (!this.floor) {
+      return
+    }
+    if (!setFurnitureFillColor(this.floor, layerId, fillColor)) {
+      return
+    }
+
+    const sceneObject = this.objectById.get(layerId)
+    if (sceneObject) {
+      applyFurniturePaintToSceneObject(sceneObject, fillColor)
       sceneObject.setCoords()
       this.canvas.requestRenderAll()
     }

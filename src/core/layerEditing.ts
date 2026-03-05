@@ -5,6 +5,7 @@ export interface LayerEditSnapshot {
   id: string
   type: LayerType
   name: string
+  fillColor: string | null
   x: number
   y: number
   width: number
@@ -40,6 +41,7 @@ export function buildLayerEditSnapshot(
       id: layerId,
       type: LayerType.PlanImage,
       name: floor.planImage.name,
+      fillColor: null,
       x: floor.planImage.position.x,
       y: floor.planImage.position.y,
       width,
@@ -59,6 +61,7 @@ export function buildLayerEditSnapshot(
       id: layerId,
       type: LayerType.Room,
       name: room.name,
+      fillColor: null,
       x: sceneObject.left ?? 0,
       y: sceneObject.top ?? 0,
       width: sceneObject.getScaledWidth(),
@@ -81,6 +84,7 @@ export function buildLayerEditSnapshot(
     id: layerId,
     type: LayerType.Furniture,
     name: furniture.label,
+    fillColor: furniture.fillColor ?? null,
     x: furniture.position.x,
     y: furniture.position.y,
     width: furniture.widthMeters,

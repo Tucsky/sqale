@@ -45,6 +45,7 @@ const floorFixture: FloorModel = {
     {
       id: 'furn_sofa',
       label: 'Sofa',
+      fillColor: '#0f766e',
       position: { x: 1, y: 1 },
       widthMeters: 2,
       depthMeters: 1,
@@ -57,6 +58,7 @@ const floorFixture: FloorModel = {
     {
       id: 'furn_table',
       label: 'Table',
+      fillColor: '#0f766e',
       position: { x: 5, y: 2 },
       widthMeters: 1,
       depthMeters: 1,

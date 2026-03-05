@@ -16,6 +16,7 @@ import {
   toggleLayerLock,
   toggleLayerVisibility,
 } from '@/core/floorActions'
+import { drawFurnitureLabelOverlay } from '@/core/furnitureLabelOverlay'
 import { drawGridOverlay } from '@/core/gridOverlay'
 import { buildLayerTree } from '@/core/layerModel'
 import { createId } from '@/lib/utils'
@@ -237,6 +238,7 @@ export class CanvasEngineCore {
       return
     }
     if (renameLayer(this.floor, layerId, nextName)) {
+      this.canvas.requestRenderAll()
       this.emitChange()
     }
   }
@@ -268,7 +270,6 @@ export class CanvasEngineCore {
       }
       room.points = polygonToWorldPoints(targetObject as fabric.Polygon)
       room.areaSqm = computePolygonAreaSqm(room.points)
-      room.opacity = targetObject.opacity ?? room.opacity
       this.emitChange()
       return
     }
@@ -282,7 +283,6 @@ export class CanvasEngineCore {
         height: result.depthMeters,
         left: result.position.x,
         top: result.position.y,
-        opacity: result.opacity,
         scaleX: 1,
         scaleY: 1,
       })
@@ -306,10 +306,15 @@ export class CanvasEngineCore {
     this.emitLayerTree()
   }
   protected readonly drawGrid = (): void => {
-    if (!this.floor?.grid.visible) {
+    if (!this.floor) {
       return
     }
-    drawGridOverlay(this.canvas, this.floor.grid.spacingMeters)
+
+    if (this.floor.grid.visible) {
+      drawGridOverlay(this.canvas, this.floor.grid.spacingMeters)
+    }
+
+    drawFurnitureLabelOverlay(this.canvas, this.floor.furnitures, this.objectById)
   }
   private applyObjectVisibility(layerId: string, visible: boolean): void {
     const targetObject = this.objectById.get(layerId)

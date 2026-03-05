@@ -178,7 +178,7 @@ function getIconComponent(layerType: LayerType) {
           >
             <button
               v-if="row.node.children.length > 0"
-              class="h-5 w-5 rounded hover:bg-background"
+              class="h-5 w-5 rounded"
               @click.stop="toggleCollapsed(row.node.id)"
             >
               <ChevronRight v-if="collapsedById[row.node.id]" class="h-4 w-4" />

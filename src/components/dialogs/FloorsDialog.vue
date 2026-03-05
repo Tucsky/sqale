@@ -89,7 +89,7 @@ function commitRename(): void {
             {{ floor.name }}
           </button>
 
-          <Button size="sm" variant="secondary" @click="emit('selectFloor', floor.id)">Use</Button>
+          <Button size="sm" variant="outline" @click="emit('selectFloor', floor.id)">Use</Button>
           <Button
             size="icon"
             variant="ghost"
@@ -101,16 +101,15 @@ function commitRename(): void {
         </div>
       </div>
 
-      <div class="mt-4 flex gap-2">
-        <Input v-model="newFloorName" placeholder="New floor name" />
-        <Button variant="secondary" @click="createFloor">
-          <Plus class="h-4 w-4" />
-          Add floor
-        </Button>
-      </div>
 
       <DialogFooter>
-        <Button variant="secondary" @click="emit('close')">Close</Button>
+        <div class="mt-4 flex gap-2">
+          <Input class="grow" v-model="newFloorName" placeholder="New floor name" />
+          <Button class="shink-0 px-4" size="lg" variant="outline" @click="createFloor">
+            <Plus class="h-4 w-4" />
+            Add floor
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
   </Dialog>

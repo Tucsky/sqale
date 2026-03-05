@@ -13,7 +13,7 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<DropdownMenuContentProps & { class?: HTMLAttributes['class'] }>(),
   {
-    sideOffset: 4,
+    sideOffset: 8,
   },
 )
 const emits = defineEmits<DropdownMenuContentEmits>()

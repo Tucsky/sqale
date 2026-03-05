@@ -76,3 +76,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .canvas-bg {
+    background-color: hsl(var(--muted) / 0.45);
+    background-image: linear-gradient(160deg, hsl(var(--background) / 0.9), hsl(var(--muted) / 0.65));
+  }
+}

@@ -1,5 +1,6 @@
 import { fabric } from 'fabric'
 
+import { buildFurniturePaint } from '@/core/furnitureColors'
 import { LayerType, type FurnitureModel, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
 
 export interface EngineFabricObject extends fabric.Object {
@@ -7,10 +8,7 @@ export interface EngineFabricObject extends fabric.Object {
   sqaleType?: (typeof LayerType)[keyof typeof LayerType]
 }
 
-const ROOM_FILL = 'rgba(14, 165, 233, 0.18)'
 const ROOM_STROKE = '#0284c7'
-const FURNITURE_FILL = 'rgba(15, 118, 110, 0.24)'
-const FURNITURE_STROKE = '#0f766e'
 
 export function createPlanImageObject(
   planImage: PlanImageModel,
@@ -64,21 +62,22 @@ export function createRoomObject(room: RoomModel): EngineFabricObject {
 }
 
 export function createFurnitureObject(furniture: FurnitureModel): EngineFabricObject {
+  const furniturePaint = buildFurniturePaint(furniture.fillColor)
   const furnitureRect = new fabric.Rect({
     left: furniture.position.x,
     top: furniture.position.y,
     width: furniture.widthMeters,
     height: furniture.depthMeters,
     angle: furniture.rotationDeg,
-    fill: FURNITURE_FILL,
-    stroke: FURNITURE_STROKE,
+    fill: furniturePaint.fillColor,
+    stroke: furniturePaint.strokeColor,
     strokeWidth: 0.01,
     originX: 'center',
     originY: 'center',
     selectable: !furniture.locked,
     evented: !furniture.locked,
     visible: furniture.visible,
-    opacity: furniture.opacity,
+    opacity: 1,
     transparentCorners: false,
     cornerStyle: 'circle',
     lockUniScaling: false,
@@ -87,6 +86,15 @@ export function createFurnitureObject(furniture: FurnitureModel): EngineFabricOb
   furnitureRect.sqaleId = furniture.id
   furnitureRect.sqaleType = LayerType.Furniture
   return furnitureRect
+}
+
+export function applyFurniturePaintToSceneObject(sceneObject: EngineFabricObject, fillColor: string): void {
+  const furniturePaint = buildFurniturePaint(fillColor)
+  sceneObject.set({
+    fill: furniturePaint.fillColor,
+    stroke: furniturePaint.strokeColor,
+    opacity: 1,
+  })
 }
 
 export function createRoomDraft(points: PointMeters[]): fabric.Polyline {

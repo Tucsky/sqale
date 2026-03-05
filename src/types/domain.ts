@@ -60,6 +60,7 @@ export interface RoomModel {
 export interface FurnitureModel {
   id: string
   label: string
+  fillColor: string
   position: PointMeters
   widthMeters: number
   depthMeters: number

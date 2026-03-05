@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { EngineFabricObject } from '@/core/canvasObjects'
-import { applyFurnitureTransform, applyScaleCalibration, removeLayer, setLayerOpacity } from '@/core/floorActions'
+import { applyFurnitureTransform, applyScaleCalibration, removeLayer, setFurnitureFillColor, setLayerOpacity } from '@/core/floorActions'
 import type { FloorModel } from '@/types/domain'
 
 const floorFixture: FloorModel = {
@@ -41,6 +41,7 @@ const floorFixture: FloorModel = {
     {
       id: 'furniture_1',
       label: 'Chair',
+      fillColor: '#0f766e',
       position: { x: 0, y: 0 },
       widthMeters: 1,
       depthMeters: 1,
@@ -91,15 +92,22 @@ describe('floorActions', () => {
     expect(floor.furnitures[0]?.roomId).toBeNull()
   })
 
-  it('updates opacity for room, furniture and plan image layers', () => {
+  it('updates opacity only for plan image layers', () => {
     const floor = structuredClone(floorFixture)
 
-    expect(setLayerOpacity(floor, 'room_1', 0.45)).toBe(true)
-    expect(setLayerOpacity(floor, 'furniture_1', 0.55)).toBe(true)
+    expect(setLayerOpacity(floor, 'room_1', 0.45)).toBe(false)
+    expect(setLayerOpacity(floor, 'furniture_1', 0.55)).toBe(false)
     expect(setLayerOpacity(floor, 'plan_1', 0.65)).toBe(true)
 
-    expect(floor.rooms[0]?.opacity).toBe(0.45)
-    expect(floor.furnitures[0]?.opacity).toBe(0.55)
+    expect(floor.rooms[0]?.opacity).toBe(1)
+    expect(floor.furnitures[0]?.opacity).toBe(1)
     expect(floor.planImage?.opacity).toBe(0.65)
+  })
+
+  it('saves furniture fill colors as normalized hex values', () => {
+    const floor = structuredClone(floorFixture)
+
+    expect(setFurnitureFillColor(floor, 'furniture_1', '#abc')).toBe(true)
+    expect(floor.furnitures[0]?.fillColor).toBe('#aabbcc')
   })
 })

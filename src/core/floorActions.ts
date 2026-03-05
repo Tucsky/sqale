@@ -1,4 +1,5 @@
 import { computePolygonAreaSqm, distanceMeters, isPointInsidePolygon } from '@/core/geometry'
+import { DEFAULT_FURNITURE_FILL_COLOR, normalizeFurnitureFillColor } from '@/core/furnitureColors'
 import { calibrateMetersPerPixel } from '@/core/scale'
 import { createId } from '@/lib/utils'
 import type { FloorModel, FurnitureModel, PointMeters } from '@/types/domain'
@@ -45,6 +46,7 @@ export function createFurnitureTemplate(floor: FloorModel, roomId: string | null
   return {
     id: createId('furniture'),
     label: `Furniture ${floor.furnitures.length + 1}`,
+    fillColor: DEFAULT_FURNITURE_FILL_COLOR,
     position: { x: 0, y: 0 },
     widthMeters: 1,
     depthMeters: 0.6,
@@ -163,24 +165,21 @@ export function setLayerOpacity(floor: FloorModel, layerId: string, opacity: num
     return true
   }
 
-  const room = floor.rooms.find((candidate) => candidate.id === layerId)
-  if (room) {
-    room.opacity = opacity
-    return true
-  }
-
-  const furniture = floor.furnitures.find((candidate) => candidate.id === layerId)
-  if (furniture) {
-    furniture.opacity = opacity
-    return true
-  }
-
   return false
+}
+
+export function setFurnitureFillColor(floor: FloorModel, furnitureId: string, fillColor: string): boolean {
+  const furniture = floor.furnitures.find((candidate) => candidate.id === furnitureId)
+  if (!furniture) {
+    return false
+  }
+
+  furniture.fillColor = normalizeFurnitureFillColor(fillColor)
+  return true
 }
 
 export interface FurnitureMutationResult {
   depthMeters: number
-  opacity: number
   position: PointMeters
   roomId: string | null
   rotationDeg: number
@@ -204,7 +203,6 @@ export function applyFurnitureTransform(
   furniture.depthMeters = (targetObject.height ?? furniture.depthMeters) * (targetObject.scaleY ?? 1)
   furniture.position = { x: targetObject.left ?? 0, y: targetObject.top ?? 0 }
   furniture.rotationDeg = targetObject.angle ?? 0
-  furniture.opacity = targetObject.opacity ?? furniture.opacity
 
   if (floor.grid.snap) {
     const spacing = floor.grid.spacingMeters
@@ -219,7 +217,6 @@ export function applyFurnitureTransform(
   return {
     widthMeters: furniture.widthMeters,
     depthMeters: furniture.depthMeters,
-    opacity: furniture.opacity,
     position: furniture.position,
     rotationDeg: furniture.rotationDeg,
     roomId: furniture.roomId,
