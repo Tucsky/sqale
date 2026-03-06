@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { LayerEditSnapshot } from '@/features/canvas/engine/canvasEngine'
 import { projectLayerSurfaceSqm } from '@/features/layers/model/layerEditing'
+import { ScaleCalibrationMode } from '@/types/domain'
 
 const props = defineProps<{
   drawingRoom: boolean
   roomDraftClosed: boolean
   roomDraftAreaSqm: number
   calibrating: boolean
+  calibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode] | null
   measuredCalibrationDistance: number
   selectedLayer: LayerEditSnapshot | null
 }>()
@@ -76,12 +78,27 @@ const showSelectionAction = computed(() => !props.calibrating && !props.drawingR
       <template v-if="props.calibrating">
         <Ruler class="h-4 w-4 text-muted-foreground" />
         <span class="text-sm text-muted-foreground">
-          <template v-if="props.measuredCalibrationDistance <= 0">Calibration in progress: click two points on the plan.</template>
+          <template v-if="props.calibrationMode === ScaleCalibrationMode.TwoPoint">
+            <template v-if="props.measuredCalibrationDistance <= 0">Two-point calibration in progress: click two points on the plan.</template>
+            <template v-else>
+              Calibration points set ({{ props.measuredCalibrationDistance.toFixed(2) }} m). Confirm or adjust points.
+            </template>
+          </template>
           <template v-else>
-            Calibration points set ({{ props.measuredCalibrationDistance.toFixed(2) }} m). Confirm or adjust points.
+            <template v-if="!props.roomDraftClosed">Surface calibration in progress: draw and close the polygon on the plan.</template>
+            <template v-else>
+              Calibration surface set ({{ props.roomDraftAreaSqm.toFixed(2) }} m²). Confirm or adjust polygon.
+            </template>
           </template>
         </span>
-        <Button v-if="props.measuredCalibrationDistance > 0" size="sm" @click="emit('confirmCalibration')">Confirm points</Button>
+        <Button
+          v-if="(props.calibrationMode === ScaleCalibrationMode.TwoPoint && props.measuredCalibrationDistance > 0)
+            || (props.calibrationMode === ScaleCalibrationMode.Surface && props.roomDraftClosed && props.roomDraftAreaSqm > 0)"
+          size="sm"
+          @click="emit('confirmCalibration')"
+        >
+          {{ props.calibrationMode === ScaleCalibrationMode.TwoPoint ? 'Confirm points' : 'Confirm surface' }}
+        </Button>
         <Button size="sm" variant="secondary" @click="emit('cancelCalibration')">Cancel</Button>
       </template>
 

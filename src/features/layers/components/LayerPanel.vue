@@ -38,6 +38,7 @@ const emit = defineEmits<{
   renameLayer: [layerId: string, name: string]
   deleteLayer: [layerId: string]
   editLayer: [layerId: string]
+  calibrateLayer: [layerId: string]
 }>()
 
 const panelElement = ref<HTMLElement | null>(null)
@@ -259,6 +260,7 @@ function getIconComponent(layerType: LayerType) {
         <LayerContextMenu
           v-if="isSceneLayer(row.node)"
           :layer-id="row.node.id"
+          :layer-type="row.node.type"
           :visible="row.node.visible"
           :locked="row.node.locked"
           @toggle-visibility="emit('toggleVisibility', row.node.id)"
@@ -266,6 +268,7 @@ function getIconComponent(layerType: LayerType) {
           @bring-to-front="emit('bringToFront', row.node.id)"
           @bring-to-back="emit('bringToBack', row.node.id)"
           @edit-layer="emit('editLayer', row.node.id)"
+          @calibrate-layer="emit('calibrateLayer', row.node.id)"
           @delete-layer="emit('deleteLayer', row.node.id)"
         />
       </ContextMenu>

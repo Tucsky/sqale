@@ -5,6 +5,7 @@ import type { EngineFabricObject } from '@/features/canvas/engine/canvasObjects'
 import {
   applyFurnitureTransform,
   applyScaleCalibration,
+  applySurfaceScaleCalibration,
   cloneFurnitureModel,
   createFurnitureTemplate,
   duplicateFurniture,
@@ -73,6 +74,15 @@ describe('floorActions', () => {
 
     expect(changed).toBe(true)
     expect(floor.scale.metersPerPixel).toBe(0.02)
+  })
+
+  it('updates metersPerPixel when calibration area changes', () => {
+    const floor = structuredClone(floorFixture)
+    const changed = applySurfaceScaleCalibration(floor, 12, 27)
+
+    expect(changed).toBe(true)
+    expect(floor.scale.metersPerPixel).toBe(0.015)
+    expect(floor.rooms[0]?.areaSqm).toBe(27)
   })
 
   it('snaps furniture transforms to grid spacing when snap is enabled', () => {

@@ -1,7 +1,7 @@
 import { computePolygonAreaSqm, distanceMeters, isPointInsidePolygon } from '@/features/canvas/math/geometry'
 import { snapValue, type EngineFabricObject } from '@/features/canvas/engine/canvasObjects'
 import { DEFAULT_FURNITURE_FILL_COLOR, normalizeFurnitureFillColor } from '@/features/furniture/model/furnitureColors'
-import { calibrateMetersPerPixel } from '@/features/canvas/math/scale'
+import { calibrateMetersPerPixel, calibrateMetersPerPixelFromArea } from '@/features/canvas/math/scale'
 import { createId } from '@/lib/utils'
 import type { FloorModel, FurnitureModel, PointMeters } from '@/types/domain'
 
@@ -12,15 +12,35 @@ export function applyScaleCalibration(
   realDistanceMeters: number,
 ): boolean {
   const measuredDistance = distanceMeters(firstPoint, secondPoint)
+  const nextMetersPerPixel = calibrateMetersPerPixel(
+    floor.scale.metersPerPixel,
+    measuredDistance,
+    realDistanceMeters,
+  )
+  return applyMetersPerPixelCalibration(floor, nextMetersPerPixel)
+}
+
+export function applySurfaceScaleCalibration(
+  floor: FloorModel,
+  measuredAreaSqm: number,
+  realAreaSqm: number,
+): boolean {
+  const nextMetersPerPixel = calibrateMetersPerPixelFromArea(
+    floor.scale.metersPerPixel,
+    measuredAreaSqm,
+    realAreaSqm,
+  )
+  return applyMetersPerPixelCalibration(floor, nextMetersPerPixel)
+}
+
+function applyMetersPerPixelCalibration(floor: FloorModel, nextMetersPerPixel: number): boolean {
   const currentMetersPerPixel = floor.scale.metersPerPixel
-  const nextMetersPerPixel = calibrateMetersPerPixel(currentMetersPerPixel, measuredDistance, realDistanceMeters)
   if (nextMetersPerPixel <= 0 || nextMetersPerPixel === currentMetersPerPixel) {
     return false
   }
 
   const ratio = nextMetersPerPixel / currentMetersPerPixel
   floor.scale.metersPerPixel = nextMetersPerPixel
-
   if (floor.planImage) {
     floor.planImage.position.x *= ratio
     floor.planImage.position.y *= ratio

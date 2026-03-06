@@ -46,7 +46,12 @@ function createFloor(): void {
   }
 
   emit('createFloor', name)
-  newFloorName.value = ''
+  emit('close')
+}
+
+function loadFloor(id: string): void {
+  emit('selectFloor', id)
+  emit('close')
 }
 
 function beginRename(floor: FloorModel): void {
@@ -128,7 +133,7 @@ function formatFloorArea(floorId: string): string {
             <p class="truncate text-xs text-muted-foreground">{{ formatFloorArea(floor.id) }}</p>
           </div>
 
-          <Button size="sm" variant="outline" @click="emit('selectFloor', floor.id)">Load</Button>
+          <Button size="sm" variant="outline" @click="loadFloor(floor.id)">Load</Button>
           <Button
             size="icon"
             variant="ghost"

@@ -17,7 +17,9 @@ The app runs without a backend: all project data is stored locally in IndexedDB.
 ## Features
 
 - Plan image upload (`PNG` / `JPG`) and direct transform editing on canvas.
-- Scale calibration from two picked points + known real-world distance.
+- Scale calibration from either:
+  - two picked points + known real-world distance,
+  - or a drawn/selected room surface + known real-world `m²` value.
 - Room polygon drafting with live closure state and area calculation (`m²`).
 - Furniture insertion, transform editing, color editing, and layer-level operations.
 - Layer panel with contextual actions: show/hide, lock/unlock, reorder, rename, delete.
@@ -67,14 +69,17 @@ The workflow builds with a Pages-compatible base path (`/<repo-name>/`) and depl
 flowchart TD
   A[Load floor plan image from rental ad] --> B{Plan rotated?}
   B -->|Yes| C[Rotate plan to align walls]
-  B -->|No| D[Calibrate scale using 2 known points]
+  B -->|No| D{Calibration source available?}
   C --> D
-  D --> E{Still visually off?}
-  E -->|Yes| F[Stretch / resize plan to match known dimensions]
-  E -->|No| G[Draw rooms at scale on top of the plan]
+  D -->|Known segment length| E[Two-point calibration: pick 2 points, enter real distance]
+  D -->|Known room surface| F[Surface calibration: draw polygon or right-click room, enter real m²]
+  E --> G{Still visually off?}
   F --> G
-  G --> H[Place furniture at scale]
-  H --> I[Project your belongings and test how you'd live in the space]
+  G -->|Yes| H[Stretch / resize plan to match known dimensions]
+  G -->|No| I[Draw rooms at scale on top of the plan]
+  H --> I
+  I --> J[Place furniture at scale]
+  J --> K[Project your belongings and test how you'd live in the space]
 ```
 
 ### Folder Conventions

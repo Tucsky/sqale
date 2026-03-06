@@ -31,6 +31,7 @@ export function createPlanImageObject(
         hasControls: !planImage.locked,
         scaleX: metersPerPixel * planImage.scaleX,
         scaleY: metersPerPixel * planImage.scaleY,
+        backgroundColor: 'white',
       })
 
       planObject.sqaleId = planImage.id

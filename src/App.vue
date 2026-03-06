@@ -20,7 +20,7 @@ import {
   saveFloor,
   setCurrentFloorId,
 } from '@/storage/db'
-import type { FloorModel, LayerNode } from '@/types/domain'
+import { ScaleCalibrationMode, type FloorModel, type LayerNode } from '@/types/domain'
 
 const canvasEngine = ref<CanvasEngine | null>(null)
 const floors = ref<FloorModel[]>([])
@@ -41,6 +41,11 @@ const roomDraftClosed = ref(false)
 const roomDraftAreaSqm = ref(0)
 const drawingRoom = ref(false)
 const calibratingScale = ref(false)
+const calibrationMode = ref<(typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode] | null>(null)
+const scaleDialogCalibrationMode = ref<(typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]>(
+  ScaleCalibrationMode.TwoPoint,
+)
+const scaleDialogRoomId = ref<string | null>(null)
 let persistTimer: ReturnType<typeof setTimeout> | null = null
 let pendingPersistFloor: FloorModel | null = null
 
@@ -48,6 +53,14 @@ const gridVisible = computed(() => currentFloor.value?.grid.visible ?? false)
 const gridSpacing = computed(() => currentFloor.value?.grid.spacingMeters ?? 0.5)
 const gridSnap = computed(() => currentFloor.value?.grid.snap ?? false)
 const metersPerPixel = computed(() => currentFloor.value?.scale.metersPerPixel ?? 0.01)
+const scaleDialogMeasuredSurfaceSqm = computed(() => {
+  if (!scaleDialogRoomId.value || !currentFloor.value) {
+    return roomDraftAreaSqm.value
+  }
+
+  const matchedRoom = currentFloor.value.rooms.find((room) => room.id === scaleDialogRoomId.value)
+  return matchedRoom?.areaSqm ?? 0
+})
 
 // Keeping this orchestration in one module avoids cross-component watcher races between
 // canvas selection, context menu targeting, persistence scheduling, and dialog snapshots.
@@ -202,6 +215,11 @@ async function selectFloor(nextFloorId: string): Promise<void> {
     return
   }
 
+  if (canvasEngine.value) {
+    canvasEngine.value.cancelRoomDrawing()
+    canvasEngine.value.cancelCalibration()
+  }
+
   currentFloorId.value = nextFloorId
   currentFloor.value = cloneFloorModel(nextFloor)
   selectedLayerId.value = null
@@ -215,6 +233,8 @@ async function selectFloor(nextFloorId: string): Promise<void> {
   roomDraftClosed.value = false
   roomDraftAreaSqm.value = 0
   calibratingScale.value = false
+  calibrationMode.value = null
+  scaleDialogRoomId.value = null
   scaleDialogOpen.value = false
 }
 
@@ -231,9 +251,12 @@ function toggleRoomDrawing(): void {
     return
   }
 
+  if (calibratingScale.value) {
+    cancelScaleCalibration()
+  }
+
   canvasEngine.value.startRoomDrawing()
   drawingRoom.value = true
-  calibratingScale.value = false
 }
 
 function finishRoom(): void {
@@ -259,20 +282,27 @@ function cancelRoomDrawing(): void {
   roomDraftAreaSqm.value = 0
 }
 
-function startScaleCalibration(): void {
+function startScaleCalibration(mode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]): void {
   if (!canvasEngine.value) {
     return
   }
 
-  if (calibratingScale.value) {
-    cancelScaleCalibration()
-    return
+  if (drawingRoom.value) {
+    cancelRoomDrawing()
   }
 
-  canvasEngine.value.startCalibration()
+  if (calibratingScale.value) {
+    canvasEngine.value.cancelCalibration()
+  }
+
+  canvasEngine.value.startCalibration(mode)
   calibratingScale.value = true
-  drawingRoom.value = false
+  calibrationMode.value = mode
+  scaleDialogCalibrationMode.value = mode
   measuredCalibrationDistance.value = 0
+  roomDraftClosed.value = false
+  roomDraftAreaSqm.value = 0
+  scaleDialogRoomId.value = null
   scaleDialogOpen.value = false
 }
 
@@ -283,23 +313,81 @@ function cancelScaleCalibration(): void {
 
   canvasEngine.value.cancelCalibration()
   calibratingScale.value = false
+  calibrationMode.value = null
   measuredCalibrationDistance.value = 0
+  roomDraftClosed.value = false
+  roomDraftAreaSqm.value = 0
+  scaleDialogRoomId.value = null
   scaleDialogOpen.value = false
 }
 
-function applyScale(distanceMeters: number): void {
-  canvasEngine.value?.setScale(distanceMeters)
-  scaleDialogOpen.value = false
-  calibratingScale.value = false
-  measuredCalibrationDistance.value = 0
-}
-
-function openScaleDialog(): void {
-  if (!calibratingScale.value || measuredCalibrationDistance.value <= 0) {
+function applyScale(calibrationValue: number): void {
+  if (!canvasEngine.value) {
     return
   }
 
+  if (scaleDialogCalibrationMode.value === ScaleCalibrationMode.TwoPoint) {
+    canvasEngine.value.setScale(calibrationValue)
+  } else if (scaleDialogRoomId.value) {
+    canvasEngine.value.setRoomSurfaceScale(scaleDialogRoomId.value, calibrationValue)
+  } else {
+    canvasEngine.value.setSurfaceScale(calibrationValue)
+  }
+
+  scaleDialogOpen.value = false
+  scaleDialogRoomId.value = null
+  if (calibratingScale.value) {
+    calibratingScale.value = false
+    calibrationMode.value = null
+    measuredCalibrationDistance.value = 0
+    roomDraftClosed.value = false
+    roomDraftAreaSqm.value = 0
+  }
+}
+
+function openScaleDialog(): void {
+  if (!calibratingScale.value || !calibrationMode.value) {
+    return
+  }
+
+  if (calibrationMode.value === ScaleCalibrationMode.TwoPoint && measuredCalibrationDistance.value <= 0) {
+    return
+  }
+  if (calibrationMode.value === ScaleCalibrationMode.Surface && (!roomDraftClosed.value || roomDraftAreaSqm.value <= 0)) {
+    return
+  }
+
+  scaleDialogCalibrationMode.value = calibrationMode.value
+  scaleDialogRoomId.value = null
   scaleDialogOpen.value = true
+}
+
+function closeScaleDialog(): void {
+  scaleDialogOpen.value = false
+  scaleDialogRoomId.value = null
+}
+
+function calibrateRoomSurface(layerId: string): void {
+  if (!canvasEngine.value || !currentFloor.value) {
+    return
+  }
+
+  const roomMatch = currentFloor.value.rooms.find((room) => room.id === layerId)
+  if (!roomMatch) {
+    return
+  }
+
+  if (calibratingScale.value) {
+    cancelScaleCalibration()
+  }
+  if (drawingRoom.value) {
+    cancelRoomDrawing()
+  }
+
+  scaleDialogCalibrationMode.value = ScaleCalibrationMode.Surface
+  scaleDialogRoomId.value = roomMatch.id
+  scaleDialogOpen.value = true
+  canvasContextMenuOpen.value = false
 }
 
 function addFurniture(): void {
@@ -457,6 +545,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
         <LayerContextMenu
           v-if="canvasContextLayer"
           :layer-id="canvasContextLayer.id"
+          :layer-type="canvasContextLayer.type"
           :visible="canvasContextLayer.visible"
           :locked="canvasContextLayer.locked"
           @toggle-visibility="toggleLayerVisibility"
@@ -464,6 +553,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
           @bring-to-front="bringLayerToFront"
           @bring-to-back="bringLayerToBack"
           @edit-layer="openLayerEdit"
+          @calibrate-layer="calibrateRoomSurface"
           @delete-layer="deleteLayerFromPanel"
         />
       </template>
@@ -497,6 +587,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       @rename-layer="renameLayer"
       @delete-layer="deleteLayerFromPanel"
       @edit-layer="openLayerEdit"
+      @calibrate-layer="calibrateRoomSurface"
     />
 
     <ActionBar
@@ -504,6 +595,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :room-draft-closed="roomDraftClosed"
       :room-draft-area-sqm="roomDraftAreaSqm"
       :calibrating="calibratingScale"
+      :calibration-mode="calibrationMode"
       :measured-calibration-distance="measuredCalibrationDistance"
       :selected-layer="selectedLayerSnapshot"
       @finish-room="finishRoom"
@@ -515,8 +607,10 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
 
     <ScaleDialog
       :open="scaleDialogOpen"
+      :calibration-mode="scaleDialogCalibrationMode"
       :measured-distance="measuredCalibrationDistance"
-      @close="scaleDialogOpen = false"
+      :measured-surface-sqm="scaleDialogMeasuredSurfaceSqm"
+      @close="closeScaleDialog"
       @apply="applyScale"
     />
 

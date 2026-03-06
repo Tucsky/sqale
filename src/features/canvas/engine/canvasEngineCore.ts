@@ -1,39 +1,14 @@
 import { fabric } from 'fabric'
-import {
-  createFurnitureObject,
-  createPlanImageObject,
-  createRoomDraft,
-  createRoomObject,
-  type EngineFabricObject,
-  polygonToWorldPoints,
-} from '@/features/canvas/engine/canvasObjects'
+import { createFurnitureObject, createPlanImageObject, createRoomObject, type EngineFabricObject, polygonToWorldPoints } from '@/features/canvas/engine/canvasObjects'
 import { computePolygonAreaSqm } from '@/features/canvas/math/geometry'
-import {
-  applyFurnitureTransform,
-  applyScaleCalibration,
-  createFurnitureTemplate,
-  renameLayer,
-  toggleLayerLock,
-  toggleLayerVisibility,
-} from '@/features/floors/model/floorActions'
+import { applyFurnitureTransform, applyScaleCalibration, applySurfaceScaleCalibration, createFurnitureTemplate, renameLayer, toggleLayerLock, toggleLayerVisibility } from '@/features/floors/model/floorActions'
 import { drawFurnitureLabelOverlay } from '@/features/canvas/engine/furnitureLabelOverlay'
 import { drawGridOverlay } from '@/features/canvas/engine/gridOverlay'
 import { buildLayerTree } from '@/features/layers/model/layerModel'
 import { createId } from '@/lib/utils'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
 import { fitObjectInViewport } from '@/features/canvas/engine/viewportFit'
-import {
-  EngineMode,
-  LayerType,
-  type CalibrationResult,
-  type FloorModel,
-  type FurnitureModel,
-  type GridSpacing,
-  type LayerNode,
-  type PlanImageModel,
-  type PointMeters,
-  type RoomModel,
-} from '@/types/domain'
+import { EngineMode, LayerType, ScaleCalibrationMode, type CalibrationResult, type FloorModel, type FurnitureModel, type GridSpacing, type LayerNode, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
 export interface CanvasEngineCallbacks {
   onFloorUpdated?: (floor: FloorModel) => void
   onLayerTreeChanged?: (layerTree: LayerNode) => void
@@ -49,9 +24,9 @@ export class CanvasEngineCore {
   protected floor: FloorModel | null = null
   protected objectById = new Map<string, EngineFabricObject>()
   protected mode: (typeof EngineMode)[keyof typeof EngineMode] = EngineMode.Idle
+  protected scaleCalibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode] = ScaleCalibrationMode.TwoPoint
   protected isPanning = false
   protected draftRoomPoints: PointMeters[] = []
-  protected draftRoomObject: fabric.Polyline | null = null
   protected calibrationPoints: PointMeters[] = []
   private renderRevision = 0
   constructor(canvasElement: HTMLCanvasElement, callbacks: CanvasEngineCallbacks = {}) {
@@ -81,19 +56,26 @@ export class CanvasEngineCore {
     return this.floor ? cloneFloorModel(this.floor) : null
   }
   loadFloor(nextFloor: FloorModel): void {
+    this.mode = EngineMode.Idle
+    this.scaleCalibrationMode = ScaleCalibrationMode.TwoPoint
+    this.calibrationPoints = []
+    this.draftRoomPoints = []
     this.floor = cloneFloorModel(nextFloor)
     void this.refreshScene(true)
     this.emitLayerTree()
   }
-  startCalibration(): void {
+  startCalibration(calibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]): void {
     this.mode = EngineMode.CalibrateScale
+    this.scaleCalibrationMode = calibrationMode
     this.calibrationPoints = []
+    this.draftRoomPoints = []
     this.canvas.discardActiveObject()
     this.canvas.requestRenderAll()
   }
   cancelCalibration(): void {
     this.mode = EngineMode.Idle
     this.calibrationPoints = []
+    this.draftRoomPoints = []
   }
   setScale(realDistanceMeters: number): void {
     if (!this.floor || this.calibrationPoints.length !== 2) {
@@ -105,24 +87,54 @@ export class CanvasEngineCore {
       return
     }
     if (!applyScaleCalibration(this.floor, firstPoint, secondPoint, realDistanceMeters)) {
+      this.mode = EngineMode.Idle
       this.calibrationPoints = []
       return
     }
+    this.mode = EngineMode.Idle
     this.calibrationPoints = []
+    void this.refreshScene(false)
+    this.emitChange()
+  }
+  setSurfaceScale(realAreaSqm: number): void {
+    if (!this.floor || this.draftRoomPoints.length < 3) {
+      return
+    }
+    const measuredAreaSqm = computePolygonAreaSqm(this.draftRoomPoints)
+    if (!applySurfaceScaleCalibration(this.floor, measuredAreaSqm, realAreaSqm)) {
+      this.mode = EngineMode.Idle
+      this.draftRoomPoints = []
+      return
+    }
+    this.mode = EngineMode.Idle
+    this.draftRoomPoints = []
+    void this.refreshScene(false)
+    this.emitChange()
+  }
+  setRoomSurfaceScale(roomId: string, realAreaSqm: number): void {
+    if (!this.floor) {
+      return
+    }
+    const room = this.floor.rooms.find((candidate) => candidate.id === roomId)
+    if (!room) {
+      return
+    }
+    const measuredAreaSqm = computePolygonAreaSqm(room.points)
+    if (!applySurfaceScaleCalibration(this.floor, measuredAreaSqm, realAreaSqm)) {
+      return
+    }
     void this.refreshScene(false)
     this.emitChange()
   }
   startRoomDrawing(): void {
     this.mode = EngineMode.DrawRoom
     this.draftRoomPoints = []
-    this.removeDraftRoom()
     this.canvas.discardActiveObject()
     this.canvas.requestRenderAll()
   }
   cancelRoomDrawing(): void {
     this.mode = EngineMode.Idle
     this.draftRoomPoints = []
-    this.removeDraftRoom()
     this.canvas.requestRenderAll()
   }
   commitRoom(name: string): void {
@@ -144,7 +156,6 @@ export class CanvasEngineCore {
     this.canvas.add(roomObject)
     this.mode = EngineMode.Idle
     this.draftRoomPoints = []
-    this.removeDraftRoom()
     this.emitChange()
   }
   addFurniture(targetRoomId: string | null = null, spawnPosition: PointMeters = { x: 0, y: 0 }): void {
@@ -300,15 +311,6 @@ export class CanvasEngineCore {
       this.emitChange()
     }
   }
-  protected renderDraftRoom(): void {
-    this.removeDraftRoom()
-    if (this.draftRoomPoints.length === 0) {
-      return
-    }
-    this.draftRoomObject = createRoomDraft(this.draftRoomPoints)
-    this.canvas.add(this.draftRoomObject)
-    this.canvas.requestRenderAll()
-  }
   protected emitChange(): void {
     if (!this.floor) {
       return
@@ -347,7 +349,6 @@ export class CanvasEngineCore {
     const revision = ++this.renderRevision
     this.objectById.clear()
     this.canvas.clear()
-    this.removeDraftRoom()
     const activeFloor = this.floor
     if (!activeFloor) {
       return
@@ -379,13 +380,6 @@ export class CanvasEngineCore {
     }
     this.canvas.calcOffset()
     this.canvas.requestRenderAll()
-  }
-  private removeDraftRoom(): void {
-    if (!this.draftRoomObject) {
-      return
-    }
-    this.canvas.remove(this.draftRoomObject)
-    this.draftRoomObject = null
   }
   private emitLayerTree(): void {
     if (!this.floor) {

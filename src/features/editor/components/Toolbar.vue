@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Box, Image, Menu, Ruler, Settings, Square, Layers } from 'lucide-vue-next'
+import { Box, Image, Menu, Ruler, Settings, Square, Layers, SplinePointer, SquareMousePointer } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Menubar } from '@/components/ui/menubar'
+import { ScaleCalibrationMode } from '@/types/domain'
 
 const props = defineProps<{
   drawingRoom: boolean
@@ -20,7 +21,7 @@ const emit = defineEmits<{
   uploadPlan: [file: File]
   toggleRoomDrawing: []
   addFurniture: []
-  startCalibration: []
+  startCalibration: [mode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]]
   openSettings: []
   openFloors: []
 }>()
@@ -80,10 +81,24 @@ function handleFileSelection(event: Event): void {
         Add furniture
       </Button>
 
-      <Button size="sm" :variant="props.calibrating ? 'default' : 'ghost'" @click="emit('startCalibration')">
-        <Ruler class="h-4 w-4" />
-        {{ props.calibrating ? 'Cancel calibration' : 'Calibrate scale' }}
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button size="sm" :variant="props.calibrating ? 'default' : 'ghost'">
+            <Ruler class="h-4 w-4" />
+            Calibrate scale
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-52">
+          <DropdownMenuItem @select="emit('startCalibration', ScaleCalibrationMode.TwoPoint)" class="cursor-pointer">
+            <SplinePointer class="mr-2 h-4 w-4"></SplinePointer>
+            Two-point calibration
+          </DropdownMenuItem>
+          <DropdownMenuItem @select="emit('startCalibration', ScaleCalibrationMode.Surface)" class="cursor-pointer">
+            <SquareMousePointer class="mr-2 h-4 w-4"></SquareMousePointer>
+            Surface calibration
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </Menubar>
 
     <input ref="fileInput" type="file" accept="image/png,image/jpeg" class="hidden" @change="handleFileSelection" />

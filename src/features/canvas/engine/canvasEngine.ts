@@ -7,7 +7,7 @@ import { getDraftRoomAreaSqm } from '@/features/canvas/math/roomDraft'
 import { applyLayerFrameToSceneObject, buildLayerEditSnapshot, type LayerEditSnapshot } from '@/features/layers/model/layerEditing'
 import { clamp } from '@/lib/utils'
 import { panViewport, zoomFromWheel } from '@/features/canvas/engine/viewport'
-import { EngineMode, LayerType, type PointMeters } from '@/types/domain'
+import { EngineMode, LayerType, ScaleCalibrationMode, type PointMeters } from '@/types/domain'
 import { CanvasEngineCore, type CanvasEngineCallbacks } from './canvasEngineCore'
 export type { LayerEditSnapshot } from '@/features/layers/model/layerEditing'
 interface ObjectInteractionState {
@@ -58,22 +58,35 @@ export class CanvasEngine extends CanvasEngineCore {
     this.deactivateSketchMode()
     this.emitRoomDraftStatus()
   }
-  override startCalibration(): void {
-    super.startCalibration()
-    this.draftOverlays.resetCalibration(this.canvas)
+  override startCalibration(calibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]): void {
+    super.startCalibration(calibrationMode)
+    this.draftOverlays.resetAll(this.canvas)
     this.activateSketchMode()
+    this.emitRoomDraftStatus()
   }
   override cancelCalibration(): void {
     super.cancelCalibration()
-    this.draftOverlays.resetCalibration(this.canvas)
+    this.draftOverlays.resetAll(this.canvas)
     this.deactivateSketchMode()
+    this.emitRoomDraftStatus()
   }
   override setScale(realDistanceMeters: number): void {
-    const shouldExitCalibration = this.calibrationPoints.length === 2
+    const shouldExitCalibration = this.scaleCalibrationMode === ScaleCalibrationMode.TwoPoint && this.calibrationPoints.length === 2
     super.setScale(realDistanceMeters)
     if (shouldExitCalibration) {
       this.draftOverlays.resetCalibration(this.canvas)
       this.deactivateSketchMode()
+    }
+  }
+  override setSurfaceScale(realAreaSqm: number): void {
+    const shouldExitCalibration = this.scaleCalibrationMode === ScaleCalibrationMode.Surface
+      && this.draftOverlays.isRoomClosed()
+      && this.draftRoomPoints.length >= 3
+    super.setSurfaceScale(realAreaSqm)
+    if (shouldExitCalibration) {
+      this.draftOverlays.resetRoom(this.canvas)
+      this.deactivateSketchMode()
+      this.emitRoomDraftStatus()
     }
   }
   getViewportCenter(): PointMeters {
@@ -209,14 +222,26 @@ export class CanvasEngine extends CanvasEngineCore {
       return
     }
     if (this.mode === EngineMode.CalibrateScale) {
-      if (this.draftOverlays.isDraftHandle(event.target, 'calibration')) {
+      if (this.scaleCalibrationMode === ScaleCalibrationMode.TwoPoint) {
+        if (this.draftOverlays.isDraftHandle(event.target, 'calibration')) {
+          return
+        }
+        this.draftOverlays.placeCalibrationPoint(this.canvas, this.calibrationPoints, {
+          x: pointer.x,
+          y: pointer.y,
+        })
+        this.emitCalibrationMeasurement()
         return
       }
-      this.draftOverlays.placeCalibrationPoint(this.canvas, this.calibrationPoints, {
-        x: pointer.x,
-        y: pointer.y,
-      })
-      this.emitCalibrationMeasurement()
+
+      if (this.draftOverlays.isDraftHandle(event.target, 'room')) {
+        this.draftOverlays.closeRoomFromHandle(this.canvas, this.draftRoomPoints, event.target.sqaleDraftIndex)
+        this.emitRoomDraftStatus()
+        return
+      }
+
+      this.draftOverlays.placeRoomPoint(this.canvas, this.draftRoomPoints, { x: pointer.x, y: pointer.y })
+      this.emitRoomDraftStatus()
       return
     }
     const transformEvent = event as fabric.IEvent<MouseEvent> & { transform?: fabric.Transform }
@@ -277,10 +302,19 @@ export class CanvasEngine extends CanvasEngineCore {
       this.emitRoomDraftStatus()
       return
     }
-    if (this.mode === EngineMode.CalibrateScale && this.draftOverlays.isDraftHandle(movingObject, 'calibration')) {
-      this.draftOverlays.syncCalibrationDraftHandle(this.canvas, this.calibrationPoints, movingObject)
-      this.emitCalibrationMeasurement()
-      return
+    if (this.mode === EngineMode.CalibrateScale) {
+      if (this.scaleCalibrationMode === ScaleCalibrationMode.TwoPoint
+        && this.draftOverlays.isDraftHandle(movingObject, 'calibration')) {
+        this.draftOverlays.syncCalibrationDraftHandle(this.canvas, this.calibrationPoints, movingObject)
+        this.emitCalibrationMeasurement()
+        return
+      }
+      if (this.scaleCalibrationMode === ScaleCalibrationMode.Surface
+        && this.draftOverlays.isDraftHandle(movingObject, 'room')) {
+        this.draftOverlays.syncRoomDraftHandle(this.canvas, this.draftRoomPoints, movingObject)
+        this.emitRoomDraftStatus()
+        return
+      }
     }
     if (!this.floor?.grid.snap || movingObject.sqaleType !== LayerType.Furniture) {
       return
@@ -302,6 +336,9 @@ export class CanvasEngine extends CanvasEngineCore {
     this.handleObjectModified(modifiedObject)
   }
   private emitCalibrationMeasurement(): void {
+    if (this.scaleCalibrationMode !== ScaleCalibrationMode.TwoPoint) {
+      return
+    }
     if (this.calibrationPoints.length !== 2) {
       return
     }

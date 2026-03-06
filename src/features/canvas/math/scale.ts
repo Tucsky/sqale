@@ -25,6 +25,23 @@ export function calibrateMetersPerPixel(
   return currentMetersPerPixel * scaleRatio
 }
 
+/**
+ * Re-calibrates meters-per-pixel from a measured scene polygon area.
+ * Both area values are expressed in m² under the currently active scale.
+ */
+export function calibrateMetersPerPixelFromArea(
+  currentMetersPerPixel: number,
+  sceneAreaSqm: number,
+  realAreaSqm: number,
+): number {
+  if (sceneAreaSqm <= 0) {
+    return currentMetersPerPixel
+  }
+
+  const scaleRatio = Math.sqrt(realAreaSqm / sceneAreaSqm)
+  return currentMetersPerPixel * scaleRatio
+}
+
 export function scalePoint(point: PointMeters, ratio: number): PointMeters {
   return {
     x: point.x * ratio,

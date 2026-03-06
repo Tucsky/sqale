@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Lock, Pencil, Trash2, Unlock } from 'lucide-vue-next'
+import { Eye, EyeOff, Lock, Pencil, Ruler, Trash2, Unlock } from 'lucide-vue-next'
 
 import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu'
+import { LayerType, type LayerType as LayerTypeValue } from '@/types/domain'
 
 const props = defineProps<{
   layerId: string
+  layerType: LayerTypeValue
   visible: boolean
   locked: boolean
 }>()
@@ -19,6 +21,7 @@ const emit = defineEmits<{
   bringToFront: [layerId: string]
   bringToBack: [layerId: string]
   editLayer: [layerId: string]
+  calibrateLayer: [layerId: string]
   deleteLayer: [layerId: string]
 }>()
 </script>
@@ -47,6 +50,11 @@ const emit = defineEmits<{
     <ContextMenuItem @select="emit('editLayer', props.layerId)">
       <Pencil class="mr-2 h-4 w-4" />
       Edit
+    </ContextMenuItem>
+
+    <ContextMenuItem v-if="props.layerType === LayerType.Room" @select="emit('calibrateLayer', props.layerId)">
+      <Ruler class="mr-2 h-4 w-4" />
+      Calibrate
     </ContextMenuItem>
 
     <ContextMenuItem class="text-destructive focus:text-destructive" @select="emit('deleteLayer', props.layerId)">

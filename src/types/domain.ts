@@ -16,6 +16,13 @@ export const EngineMode = {
 
 export type EngineMode = (typeof EngineMode)[keyof typeof EngineMode]
 
+export const ScaleCalibrationMode = {
+  TwoPoint: 'twoPoint',
+  Surface: 'surface',
+} as const
+
+export type ScaleCalibrationMode = (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]
+
 export const GRID_SPACING_OPTIONS = [0.0625, 0.125, 0.25, 0.5, 1] as const
 export type GridSpacing = (typeof GRID_SPACING_OPTIONS)[number]
 
