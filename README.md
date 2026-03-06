@@ -53,7 +53,7 @@ One-time GitHub setup:
 2. In `Build and deployment`, set `Source` to `GitHub Actions`.
 3. Push to `main` (or run the workflow manually from `Actions`).
 
-The workflow builds with a Pages-compatible base path (`/<repo-name>/`) and deploys the generated `dist/` artifact.
+The workflow builds with a Pages-compatible base path (`/<repo-name>/`) and deploys the generated `dist/` artifact. It also tries to auto-enable Pages via Actions. If your org/repo permissions block that, complete steps 1-2 once.
 
 ## How It Works
 
