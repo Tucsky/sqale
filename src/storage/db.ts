@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
+import { syncFloorRoomsAreaSqm } from '@/features/floors/model/floorArea'
 import { createId } from '@/lib/utils'
 import type { FloorModel } from '@/types/domain'
 
@@ -54,6 +55,7 @@ export async function getFloorById(floorId: string): Promise<FloorModel | undefi
 
 export async function saveFloor(floor: FloorModel): Promise<void> {
   const database = await getDatabase()
+  syncFloorRoomsAreaSqm(floor)
   await database.put('floors', floor)
 }
 
@@ -87,6 +89,7 @@ export function createEmptyFloor(name: string): FloorModel {
       snap: false,
     },
     rooms: [],
+    roomsAreaSqm: 0,
     furnitures: [],
   }
 }

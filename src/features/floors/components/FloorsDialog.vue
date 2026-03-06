@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Layers, Plus, Trash2 } from 'lucide-vue-next'
+import { computed, nextTick, ref } from 'vue'
+import { Image as ImageIcon, Layers, Plus, Trash2 } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { getFloorRoomsAreaSqm } from '@/features/floors/model/floorArea'
 import type { FloorModel } from '@/types/domain'
 
 const props = defineProps<{
@@ -30,6 +31,13 @@ const emit = defineEmits<{
 const newFloorName = ref('')
 const editingFloorId = ref<string | null>(null)
 const editingFloorName = ref('')
+const floorAreaById = computed(() => {
+  const areaByFloorId = new Map<string, number>()
+  for (const floor of props.floors) {
+    areaByFloorId.set(floor.id, getFloorRoomsAreaSqm(floor))
+  }
+  return areaByFloorId
+})
 
 function createFloor(): void {
   const name = newFloorName.value.trim()
@@ -44,6 +52,12 @@ function createFloor(): void {
 function beginRename(floor: FloorModel): void {
   editingFloorId.value = floor.id
   editingFloorName.value = floor.name
+
+  nextTick(() => {
+    const renameInput = document.getElementById(`floor-rename-${floor.id}`) as HTMLInputElement | null
+    renameInput?.focus()
+    renameInput?.select()
+  })
 }
 
 function commitRename(): void {
@@ -59,6 +73,11 @@ function commitRename(): void {
   editingFloorId.value = null
   editingFloorName.value = ''
 }
+
+function formatFloorArea(floorId: string): string {
+  const areaSqm = floorAreaById.value.get(floorId) ?? 0
+  return `${areaSqm.toFixed(2)} m²`
+}
 </script>
 
 <template>
@@ -67,7 +86,7 @@ function commitRename(): void {
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           <Layers class="h-5 w-5" />
-          Floors management
+          Floors
         </DialogTitle>
       </DialogHeader>
 
@@ -75,21 +94,41 @@ function commitRename(): void {
         <div
           v-for="floor in props.floors"
           :key="floor.id"
-          class="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
+          class="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
           :class="floor.id === props.currentFloorId ? 'bg-accent/60' : ''"
         >
-          <Input
-            v-if="editingFloorId === floor.id"
-            v-model="editingFloorName"
-            class="flex-1"
-            @keydown.enter="commitRename"
-            @blur="commitRename"
-          />
-          <button v-else class="flex-1 text-left text-sm font-medium" @dblclick="beginRename(floor)">
-            {{ floor.name }}
-          </button>
+          <div class="h-8 w-8 shrink-0 overflow-hidden rounded border border-border/70 bg-muted">
+            <img
+              v-if="floor.planImage"
+              :src="floor.planImage.dataUrl"
+              :alt="`${floor.name} plan`"
+              class="h-full w-full object-cover"
+            />
+            <div v-else class="flex h-full w-full items-center justify-center text-muted-foreground">
+              <ImageIcon class="h-3.5 w-3.5" />
+            </div>
+          </div>
 
-          <Button size="sm" variant="outline" @click="emit('selectFloor', floor.id)">Use</Button>
+          <div class="min-w-0 flex-1">
+            <Input
+              v-if="editingFloorId === floor.id"
+              :id="`floor-rename-${floor.id}`"
+              v-model="editingFloorName"
+              class="h-6 px-2"
+              @keydown.enter="commitRename"
+              @blur="commitRename"
+            />
+            <button
+              v-else
+              class="w-full truncate text-left text-sm font-medium"
+              @dblclick="beginRename(floor)"
+            >
+              {{ floor.name }}
+            </button>
+            <p class="truncate text-xs text-muted-foreground">{{ formatFloorArea(floor.id) }}</p>
+          </div>
+
+          <Button size="sm" variant="outline" @click="emit('selectFloor', floor.id)">Load</Button>
           <Button
             size="icon"
             variant="ghost"

@@ -53,14 +53,14 @@ function handleFileSelection(event: Event): void {
             Menu
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="w-56">
-          <DropdownMenuItem @select="emit('openSettings')">
+        <DropdownMenuContent align="start" class="w-32">
+          <DropdownMenuItem @select="emit('openSettings')" class="cursor-pointer">
             <Settings class="mr-2 h-4 w-4" />
             Settings
           </DropdownMenuItem>
-          <DropdownMenuItem @select="emit('openFloors')">
+          <DropdownMenuItem @select="emit('openFloors')" class="cursor-pointer">
             <Layers class="mr-2 h-4 w-4" />
-            Floors management
+            Floors
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

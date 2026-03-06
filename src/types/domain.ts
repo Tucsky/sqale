@@ -78,6 +78,7 @@ export interface FloorModel {
   scale: ScaleModel
   grid: GridModel
   rooms: RoomModel[]
+  roomsAreaSqm?: number
   furnitures: FurnitureModel[]
 }
 
