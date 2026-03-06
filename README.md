@@ -43,6 +43,18 @@ npm test
 npm run build
 ```
 
+## Deployment (GitHub Pages)
+
+This repository includes `.github/workflows/deploy-pages.yml` to publish the app to GitHub Pages on every push to `main`.
+
+One-time GitHub setup:
+
+1. Open repository `Settings` -> `Pages`.
+2. In `Build and deployment`, set `Source` to `GitHub Actions`.
+3. Push to `main` (or run the workflow manually from `Actions`).
+
+The workflow builds with a Pages-compatible base path (`/<repo-name>/`) and deploys the generated `dist/` artifact.
+
 ## How It Works
 
 ```mermaid

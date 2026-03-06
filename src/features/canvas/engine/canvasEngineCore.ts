@@ -28,6 +28,7 @@ import {
   type CalibrationResult,
   type FloorModel,
   type FurnitureModel,
+  type GridSpacing,
   type LayerNode,
   type PlanImageModel,
   type PointMeters,
@@ -172,7 +173,7 @@ export class CanvasEngineCore {
     this.canvas.requestRenderAll()
     this.emitChange()
   }
-  setGridSpacing(spacingMeters: 0.25 | 0.5 | 1): void {
+  setGridSpacing(spacingMeters: GridSpacing): void {
     if (!this.floor) {
       return
     }
