@@ -12,12 +12,14 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { getFloorRoomsAreaSqm } from '@/features/floors/model/floorArea'
-import type { FloorModel } from '@/types/domain'
+import { formatAreaInUnit, getAreaUnitLabel } from '@/features/settings/model/measurementUnits'
+import type { FloorModel, MeasurementUnit } from '@/types/domain'
 
 const props = defineProps<{
   open: boolean
   floors: FloorModel[]
   currentFloorId: string
+  surfaceUnit: MeasurementUnit
 }>()
 
 const emit = defineEmits<{
@@ -81,7 +83,7 @@ function commitRename(): void {
 
 function formatFloorArea(floorId: string): string {
   const areaSqm = floorAreaById.value.get(floorId) ?? 0
-  return `${areaSqm.toFixed(2)} m²`
+  return `${formatAreaInUnit(areaSqm, props.surfaceUnit)} ${getAreaUnitLabel(props.surfaceUnit)}`
 }
 </script>
 

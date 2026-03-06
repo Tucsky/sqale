@@ -15,11 +15,22 @@ import { Slider } from '@/components/ui/slider'
 import { DEFAULT_FURNITURE_FILL_COLOR } from '@/features/furniture/model/furnitureColors'
 import type { LayerEditSnapshot } from '@/features/canvas/engine/canvasEngine'
 import { projectLayerSurfaceSqm } from '@/features/layers/model/layerEditing'
-import { LayerType } from '@/types/domain'
+import {
+  formatAreaInUnit,
+  getAreaUnitLabel,
+  getLengthInputMin,
+  getLengthInputStep,
+  getLengthUnitLabel,
+  metersToUnit,
+  unitToMeters,
+} from '@/features/settings/model/measurementUnits'
+import { LayerType, type MeasurementUnit } from '@/types/domain'
 
 const props = defineProps<{
   open: boolean
   target: LayerEditSnapshot | null
+  lengthUnit: MeasurementUnit
+  surfaceUnit: MeasurementUnit
 }>()
 
 const emit = defineEmits<{
@@ -37,19 +48,20 @@ const widthValue = ref(0)
 const heightValue = ref(0)
 const opacityValue = ref(1)
 const fillColorValue = ref(DEFAULT_FURNITURE_FILL_COLOR)
+const LENGTH_COMPARE_EPSILON = 1e-6
 
 watch(
-  () => [props.open, props.target] as const,
-  ([isOpen, target]) => {
+  () => [props.open, props.target, props.lengthUnit] as const,
+  ([isOpen, target, lengthUnit]) => {
     if (!isOpen || !target) {
       return
     }
 
     labelValue.value = target.name
-    xValue.value = target.x
-    yValue.value = target.y
-    widthValue.value = target.width
-    heightValue.value = target.height
+    xValue.value = metersToUnit(target.x, lengthUnit)
+    yValue.value = metersToUnit(target.y, lengthUnit)
+    widthValue.value = metersToUnit(target.width, lengthUnit)
+    heightValue.value = metersToUnit(target.height, lengthUnit)
     opacityValue.value = target.opacity
     fillColorValue.value = target.fillColor ?? DEFAULT_FURNITURE_FILL_COLOR
   },
@@ -64,8 +76,14 @@ const surfaceSqm = computed(() => {
     return 0
   }
 
-  return projectLayerSurfaceSqm(props.target, widthValue.value, heightValue.value)
+  const widthMeters = unitToMeters(widthValue.value, props.lengthUnit)
+  const heightMeters = unitToMeters(heightValue.value, props.lengthUnit)
+  return projectLayerSurfaceSqm(props.target, widthMeters, heightMeters)
 })
+const lengthUnitLabel = computed(() => getLengthUnitLabel(props.lengthUnit))
+const areaUnitLabel = computed(() => getAreaUnitLabel(props.surfaceUnit))
+const lengthInputMin = computed(() => getLengthInputMin(props.lengthUnit))
+const lengthInputStep = computed(() => getLengthInputStep(props.lengthUnit))
 
 function handleOpacityUpdate(value: number[] | undefined): void {
   const nextOpacity = value?.[0]
@@ -94,24 +112,34 @@ watch(
 )
 
 watch(
-  () => [props.open, props.target?.id, xValue.value, yValue.value, widthValue.value, heightValue.value] as const,
-  ([isOpen, targetId, x, y, width, height]) => {
+  () => [props.open, props.target?.id, xValue.value, yValue.value, widthValue.value, heightValue.value, props.lengthUnit] as const,
+  ([isOpen, targetId, x, y, width, height, lengthUnit]) => {
     if (!isOpen || !targetId || !props.target) {
       return
     }
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
       return
     }
-    if (x === props.target.x && y === props.target.y && width === props.target.width && height === props.target.height) {
+
+    const xMeters = unitToMeters(x, lengthUnit)
+    const yMeters = unitToMeters(y, lengthUnit)
+    const widthMeters = unitToMeters(width, lengthUnit)
+    const heightMeters = unitToMeters(height, lengthUnit)
+    if (
+      Math.abs(xMeters - props.target.x) <= LENGTH_COMPARE_EPSILON
+      && Math.abs(yMeters - props.target.y) <= LENGTH_COMPARE_EPSILON
+      && Math.abs(widthMeters - props.target.width) <= LENGTH_COMPARE_EPSILON
+      && Math.abs(heightMeters - props.target.height) <= LENGTH_COMPARE_EPSILON
+    ) {
       return
     }
 
     emit('applyFrame', {
       layerId: targetId,
-      x,
-      y,
-      width,
-      height,
+      x: xMeters,
+      y: yMeters,
+      width: widthMeters,
+      height: heightMeters,
     })
   },
 )
@@ -189,27 +217,29 @@ function handleLabelBlur(): void {
 
           <div class="grid grid-cols-2 gap-3">
             <label class="space-y-1 text-sm">
-              <Label>X</Label>
-              <Input v-model.number="xValue" type="number" step="0.01" />
+              <Label>X ({{ lengthUnitLabel }})</Label>
+              <Input v-model.number="xValue" type="number" :step="lengthInputStep" />
             </label>
 
             <label class="space-y-1 text-sm">
-              <Label>Y</Label>
-              <Input v-model.number="yValue" type="number" step="0.01" />
+              <Label>Y ({{ lengthUnitLabel }})</Label>
+              <Input v-model.number="yValue" type="number" :step="lengthInputStep" />
             </label>
 
             <label class="space-y-1 text-sm">
-              <Label>Width</Label>
-              <Input v-model.number="widthValue" type="number" min="0.05" step="0.01" />
+              <Label>Width ({{ lengthUnitLabel }})</Label>
+              <Input v-model.number="widthValue" type="number" :min="lengthInputMin" :step="lengthInputStep" />
             </label>
 
             <label class="space-y-1 text-sm">
-              <Label>Height</Label>
-              <Input v-model.number="heightValue" type="number" min="0.05" step="0.01" />
+              <Label>Height ({{ lengthUnitLabel }})</Label>
+              <Input v-model.number="heightValue" type="number" :min="lengthInputMin" :step="lengthInputStep" />
             </label>
           </div>
 
-          <div class="text-sm text-muted-foreground">Calculated surface: {{ surfaceSqm.toFixed(2) }} m²</div>
+          <div class="text-sm text-muted-foreground">
+            Calculated surface: {{ formatAreaInUnit(surfaceSqm, props.surfaceUnit) }} {{ areaUnitLabel }}
+          </div>
         </section>
 
         <section v-if="isFurniture" class="space-y-3 rounded-md border p-3">

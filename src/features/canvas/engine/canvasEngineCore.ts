@@ -8,7 +8,7 @@ import { buildLayerTree } from '@/features/layers/model/layerModel'
 import { createId } from '@/lib/utils'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
 import { fitObjectInViewport } from '@/features/canvas/engine/viewportFit'
-import { EngineMode, LayerType, ScaleCalibrationMode, type CalibrationResult, type FloorModel, type FurnitureModel, type FurniturePresetModel, type GridSpacing, type LayerNode, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
+import { EngineMode, LayerType, ScaleCalibrationMode, type CalibrationResult, type FloorModel, type FurnitureModel, type FurniturePresetModel, type GridSpacing, type LayerNode, type MeasurementUnit, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
 export interface CanvasEngineCallbacks {
   onFloorUpdated?: (floor: FloorModel) => void
   onLayerTreeChanged?: (layerTree: LayerNode) => void
@@ -201,6 +201,22 @@ export class CanvasEngineCore {
       return
     }
     this.floor.grid.snap = enabled
+    this.emitChange()
+  }
+  setLengthUnit(lengthUnit: MeasurementUnit): void {
+    if (!this.floor || this.floor.lengthUnit === lengthUnit) {
+      return
+    }
+
+    this.floor.lengthUnit = lengthUnit
+    this.emitChange()
+  }
+  setSurfaceUnit(surfaceUnit: MeasurementUnit): void {
+    if (!this.floor || this.floor.surfaceUnit === surfaceUnit) {
+      return
+    }
+
+    this.floor.surfaceUnit = surfaceUnit
     this.emitChange()
   }
   updatePlanOpacity(opacity: number): void {

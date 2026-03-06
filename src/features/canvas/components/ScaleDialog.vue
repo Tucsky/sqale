@@ -12,52 +12,77 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { ScaleCalibrationMode } from '@/types/domain'
+import {
+  formatAreaInUnit,
+  formatLengthInUnit,
+  getAreaInputStep,
+  getAreaUnitLabel,
+  getLengthInputStep,
+  getLengthUnitLabel,
+  unitAreaToSquareMeters,
+  unitToMeters,
+} from '@/features/settings/model/measurementUnits'
+import { ScaleCalibrationMode, type MeasurementUnit } from '@/types/domain'
 
 const props = defineProps<{
   open: boolean
   calibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]
   measuredDistance: number
   measuredSurfaceSqm: number
+  lengthUnit: MeasurementUnit
+  surfaceUnit: MeasurementUnit
 }>()
 
 const emit = defineEmits<{
   close: []
-  apply: [distanceMeters: number]
+  apply: [calibrationValue: number]
 }>()
 
-const realDistanceMeters = ref('')
-const realSurfaceSqm = ref('')
+const realDistanceInput = ref('')
+const realSurfaceInput = ref('')
 
 const isTwoPointCalibration = computed(() => props.calibrationMode === ScaleCalibrationMode.TwoPoint)
 
 watch(
-  () => props.open,
-  (isOpen) => {
+  () => [props.open, props.lengthUnit, props.surfaceUnit, props.measuredDistance, props.measuredSurfaceSqm] as const,
+  ([isOpen]) => {
     if (!isOpen) {
       return
     }
 
     if (isTwoPointCalibration.value) {
-      realDistanceMeters.value = props.measuredDistance > 0 ? props.measuredDistance.toFixed(2) : ''
-      realSurfaceSqm.value = ''
+      realDistanceInput.value = props.measuredDistance > 0
+        ? formatLengthInUnit(props.measuredDistance, props.lengthUnit)
+        : ''
+      realSurfaceInput.value = ''
       return
     }
 
-    realSurfaceSqm.value = props.measuredSurfaceSqm > 0 ? props.measuredSurfaceSqm.toFixed(2) : ''
-    realDistanceMeters.value = ''
+    realSurfaceInput.value = props.measuredSurfaceSqm > 0
+      ? formatAreaInUnit(props.measuredSurfaceSqm, props.surfaceUnit)
+      : ''
+    realDistanceInput.value = ''
   },
 )
 
+const lengthUnitLabel = computed(() => getLengthUnitLabel(props.lengthUnit))
+const areaUnitLabel = computed(() => getAreaUnitLabel(props.surfaceUnit))
+const distanceInputStep = computed(() => getLengthInputStep(props.lengthUnit))
+const areaInputStep = computed(() => getAreaInputStep(props.surfaceUnit))
+const distanceInputMin = computed(() => distanceInputStep.value)
+const areaInputMin = computed(() => areaInputStep.value)
+
 function applyCalibration(): void {
-  const parsedCalibrationValue = isTwoPointCalibration.value
-    ? Number(realDistanceMeters.value)
-    : Number(realSurfaceSqm.value)
+  const parsedCalibrationValue = isTwoPointCalibration.value ? Number(realDistanceInput.value) : Number(realSurfaceInput.value)
   if (!Number.isFinite(parsedCalibrationValue) || parsedCalibrationValue <= 0) {
     return
   }
 
-  emit('apply', parsedCalibrationValue)
+  const calibrationValue = isTwoPointCalibration.value
+    ? unitToMeters(parsedCalibrationValue, props.lengthUnit)
+    : unitAreaToSquareMeters(parsedCalibrationValue, props.surfaceUnit)
+
+  emit('apply', calibrationValue)
 }
 </script>
 
@@ -71,21 +96,21 @@ function applyCalibration(): void {
           Scale calibration
         </DialogTitle>
         <DialogDescription v-if="isTwoPointCalibration">
-          Enter the real-world distance (meters) between the two picked points.
+          Enter the real-world distance ({{ lengthUnitLabel }}) between the two picked points.
         </DialogDescription>
         <DialogDescription v-else>
-          Enter the real-world surface (m²) for the selected calibration surface.
+          Enter the real-world surface ({{ areaUnitLabel }}) for the selected calibration surface.
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-2">
         <label v-if="isTwoPointCalibration" class="text-sm font-medium">
-          Distance in meters
-          <Input v-model="realDistanceMeters" type="number" min="0.01" step="0.01" class="mt-1" />
+          Distance in {{ lengthUnitLabel }}
+          <Input v-model="realDistanceInput" type="number" :min="distanceInputMin" :step="distanceInputStep" class="mt-1" />
         </label>
         <label v-else class="text-sm font-medium">
-          Surface in m²
-          <Input v-model="realSurfaceSqm" type="number" min="0.01" step="0.01" class="mt-1" />
+          Surface in {{ areaUnitLabel }}
+          <Input v-model="realSurfaceInput" type="number" :min="areaInputMin" :step="areaInputStep" class="mt-1" />
         </label>
       </div>
 

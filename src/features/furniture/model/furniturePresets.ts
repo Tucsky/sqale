@@ -19,9 +19,9 @@ export interface FurniturePresetDraft {
 }
 
 const DEFAULT_FURNITURE_PRESET_SEEDS: FurniturePresetSeed[] = [
-  { name: 'Single Bed', widthMeters: 1.9, depthMeters: 0.9, fillColor: '#0369a1' },
-  { name: 'Double Bed', widthMeters: 1.9, depthMeters: 1.4, fillColor: '#0e7490' },
-  { name: 'Queen Bed', widthMeters: 2, depthMeters: 1.6, fillColor: '#0f766e' },
+  { name: 'Single Bed', widthMeters: 0.9, depthMeters: 1.9, fillColor: '#0369a1' },
+  { name: 'Double Bed', widthMeters: 1.4, depthMeters: 1.9, fillColor: '#0e7490' },
+  { name: 'Queen Bed', widthMeters: 1.6, depthMeters: 2, fillColor: '#0f766e' },
   { name: 'Dining Table', widthMeters: 1.8, depthMeters: 0.9, fillColor: '#a16207' },
   { name: 'Coffee Table', widthMeters: 1, depthMeters: 0.6, fillColor: '#92400e' },
   { name: 'Drawer Unit', widthMeters: 0.9, depthMeters: 0.45, fillColor: '#7c2d12' },

@@ -19,8 +19,9 @@ The app runs without a backend: all project data is stored locally in IndexedDB.
 - Plan image upload (`PNG` / `JPG`) and direct transform editing on canvas.
 - Scale calibration from either:
   - two picked points + known real-world distance,
-  - or a drawn/selected room surface + known real-world `m²` value.
-- Room polygon drafting with live closure state and area calculation (`m²`).
+  - or a drawn/selected room surface + known real-world area value.
+- Room polygon drafting with live closure state and area calculation.
+- Independent length and surface unit display/input (`m`, `cm`, `ft`, `in`) from Settings.
 - Furniture insertion, transform editing, color editing, and layer-level operations.
 - Layer panel with contextual actions: show/hide, lock/unlock, reorder, rename, delete.
 - Clipboard support for furniture copy/paste and image paste-to-plan workflows.
@@ -72,7 +73,7 @@ flowchart TD
   B -->|No| D{Calibration source available?}
   C --> D
   D -->|Known segment length| E[Two-point calibration: pick 2 points, enter real distance]
-  D -->|Known room surface| F[Surface calibration: draw polygon or right-click room, enter real m²]
+  D -->|Known room surface| F[Surface calibration: draw polygon or right-click room, enter real area]
   E --> G{Still visually off?}
   F --> G
   G -->|Yes| H[Stretch / resize plan to match known dimensions]

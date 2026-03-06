@@ -8,7 +8,7 @@ import {
 } from '@/features/furniture/model/furniturePresets'
 import { syncFloorRoomsAreaSqm } from '@/features/floors/model/floorArea'
 import { createId } from '@/lib/utils'
-import type { FloorModel, FurniturePresetModel } from '@/types/domain'
+import { MeasurementUnit, type FloorModel, type FurniturePresetModel } from '@/types/domain'
 
 interface MetaRecord {
   key: string
@@ -151,6 +151,8 @@ export function createEmptyFloor(name: string): FloorModel {
       spacingMeters: 0.5,
       snap: false,
     },
+    lengthUnit: MeasurementUnit.Meter,
+    surfaceUnit: MeasurementUnit.Meter,
     rooms: [],
     roomsAreaSqm: 0,
     furnitures: [],

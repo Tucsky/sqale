@@ -39,7 +39,7 @@ vi.mock('fabric', () => {
 })
 
 import { CanvasEngineCore } from '@/features/canvas/engine/canvasEngineCore'
-import { EngineMode, ScaleCalibrationMode, type FloorModel } from '@/types/domain'
+import { EngineMode, MeasurementUnit, ScaleCalibrationMode, type FloorModel } from '@/types/domain'
 
 class TestCanvasEngineCore extends CanvasEngineCore {
   getModeValue(): (typeof EngineMode)[keyof typeof EngineMode] {
@@ -65,6 +65,8 @@ const floorFixture: FloorModel = {
   planImage: null,
   scale: { metersPerPixel: 0.01 },
   grid: { visible: true, spacingMeters: 0.5, snap: false },
+  lengthUnit: MeasurementUnit.Meter,
+  surfaceUnit: MeasurementUnit.Meter,
   rooms: [],
   furnitures: [],
 }
@@ -90,5 +92,17 @@ describe('canvasEngineCore loadFloor interaction reset', () => {
     expect(engine.getCalibrationModeValue()).toBe(ScaleCalibrationMode.TwoPoint)
     expect(engine.getCalibrationPointsCount()).toBe(0)
     expect(engine.getDraftRoomPointsCount()).toBe(0)
+  })
+
+  it('updates floor units without changing canonical geometry state', () => {
+    const engine = new TestCanvasEngineCore({} as HTMLCanvasElement)
+    engine.loadFloor(floorFixture)
+
+    engine.setLengthUnit(MeasurementUnit.Foot)
+    engine.setSurfaceUnit(MeasurementUnit.Centimeter)
+
+    expect(engine.getFloorSnapshot()?.lengthUnit).toBe(MeasurementUnit.Foot)
+    expect(engine.getFloorSnapshot()?.surfaceUnit).toBe(MeasurementUnit.Centimeter)
+    expect(engine.getFloorSnapshot()?.scale.metersPerPixel).toBe(0.01)
   })
 })

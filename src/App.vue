@@ -13,6 +13,7 @@ import SettingsDialog from '@/features/settings/components/SettingsDialog.vue'
 import { CanvasEngine, type LayerEditSnapshot } from '@/features/canvas/engine/canvasEngine'
 import { useCanvasClipboard } from '@/features/clipboard/useCanvasClipboard'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
+import { resolveMeasurementUnit } from '@/features/settings/model/measurementUnits'
 import {
   bootstrapFloorState,
   createFurniturePresetFromFurniture,
@@ -57,6 +58,8 @@ const gridVisible = computed(() => currentFloor.value?.grid.visible ?? false)
 const gridSpacing = computed(() => currentFloor.value?.grid.spacingMeters ?? 0.5)
 const gridSnap = computed(() => currentFloor.value?.grid.snap ?? false)
 const metersPerPixel = computed(() => currentFloor.value?.scale.metersPerPixel ?? 0.01)
+const lengthUnit = computed(() => resolveMeasurementUnit(currentFloor.value?.lengthUnit))
+const surfaceUnit = computed(() => resolveMeasurementUnit(currentFloor.value?.surfaceUnit))
 const scaleDialogMeasuredSurfaceSqm = computed(() => {
   if (!scaleDialogRoomId.value || !currentFloor.value) {
     return roomDraftAreaSqm.value
@@ -609,6 +612,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :drawing-room="drawingRoom"
       :calibrating="calibratingScale"
       :furniture-presets="furniturePresets"
+      :length-unit="lengthUnit"
       @upload-plan="handlePlanUpload"
       @toggle-room-drawing="toggleRoomDrawing"
       @add-furniture="addFurniture"
@@ -643,6 +647,8 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :calibration-mode="calibrationMode"
       :measured-calibration-distance="measuredCalibrationDistance"
       :selected-layer="selectedLayerSnapshot"
+      :length-unit="lengthUnit"
+      :surface-unit="surfaceUnit"
       @finish-room="finishRoom"
       @cancel-room-drawing="cancelRoomDrawing"
       @confirm-calibration="openScaleDialog"
@@ -655,6 +661,8 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :calibration-mode="scaleDialogCalibrationMode"
       :measured-distance="measuredCalibrationDistance"
       :measured-surface-sqm="scaleDialogMeasuredSurfaceSqm"
+      :length-unit="lengthUnit"
+      :surface-unit="surfaceUnit"
       @close="closeScaleDialog"
       @apply="applyScale"
     />
@@ -662,10 +670,14 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
     <SettingsDialog
       :open="settingsOpen"
       :meters-per-pixel="metersPerPixel"
+      :length-unit="lengthUnit"
+      :surface-unit="surfaceUnit"
       :grid-visible="gridVisible"
       :grid-spacing="gridSpacing"
       :grid-snap="gridSnap"
       @close="settingsOpen = false"
+      @update-length-unit="canvasEngine?.setLengthUnit($event)"
+      @update-surface-unit="canvasEngine?.setSurfaceUnit($event)"
       @update-grid-visible="canvasEngine?.setGridVisible($event)"
       @update-grid-spacing="canvasEngine?.setGridSpacing($event)"
       @update-grid-snap="canvasEngine?.setGridSnap($event)"
@@ -675,6 +687,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :open="floorsOpen"
       :floors="floors"
       :current-floor-id="currentFloorId"
+      :surface-unit="surfaceUnit"
       @close="floorsOpen = false"
       @select-floor="selectFloor"
       @create-floor="createFloorFromDialog"
@@ -685,6 +698,8 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
     <ObjectEditDialog
       :open="objectEditDialogOpen"
       :target="selectedLayerSnapshot"
+      :length-unit="lengthUnit"
+      :surface-unit="surfaceUnit"
       @close="objectEditDialogOpen = false"
       @apply-label="applyLayerName"
       @apply-frame="applyLayerFrame"

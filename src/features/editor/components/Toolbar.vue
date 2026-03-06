@@ -22,12 +22,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Menubar } from '@/components/ui/menubar'
-import { ScaleCalibrationMode, type FurniturePresetModel } from '@/types/domain'
+import { formatLengthInUnit, getLengthUnitLabel } from '@/features/settings/model/measurementUnits'
+import { ScaleCalibrationMode, type FurniturePresetModel, type MeasurementUnit } from '@/types/domain'
 
 const props = defineProps<{
   drawingRoom: boolean
   calibrating: boolean
   furniturePresets: FurniturePresetModel[]
+  lengthUnit: MeasurementUnit
 }>()
 
 const emit = defineEmits<{
@@ -59,7 +61,9 @@ function handleFileSelection(event: Event): void {
 }
 
 function formatPresetSize(widthMeters: number, depthMeters: number): string {
-  return `${widthMeters.toFixed(2)} x ${depthMeters.toFixed(2)}`
+  const width = +formatLengthInUnit(widthMeters, props.lengthUnit)
+  const depth = +formatLengthInUnit(depthMeters, props.lengthUnit)
+  return `${width} x ${depth} ${getLengthUnitLabel(props.lengthUnit)}`
 }
 </script>
 
@@ -73,13 +77,13 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
             Menu
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="w-32">
+        <DropdownMenuContent align="start" class="w-28">
           <DropdownMenuItem @select="emit('openSettings')" class="cursor-pointer">
-            <Settings class="mr-2 h-4 w-4" />
+            <Settings class="mr-1 h-4 w-4" />
             Settings
           </DropdownMenuItem>
           <DropdownMenuItem @select="emit('openFloors')" class="cursor-pointer">
-            <Layers class="mr-2 h-4 w-4" />
+            <Layers class="mr-1 h-4 w-4" />
             Floors
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -104,7 +108,7 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-64">
           <DropdownMenuItem @select="emit('addFurniture')" class="cursor-pointer">
-            <Plus class="mr-2 h-4 w-4" />
+            <Plus class="h-4 w-4" />
             Furniture
           </DropdownMenuItem>
 
@@ -142,13 +146,13 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
             Calibrate
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="w-52">
+        <DropdownMenuContent align="start" class="w-48">
           <DropdownMenuItem @select="emit('startCalibration', ScaleCalibrationMode.TwoPoint)" class="cursor-pointer">
-            <SplinePointer class="mr-2 h-4 w-4"></SplinePointer>
+            <SplinePointer class="mr-1 h-4 w-4"></SplinePointer>
             Two-point calibration
           </DropdownMenuItem>
           <DropdownMenuItem @select="emit('startCalibration', ScaleCalibrationMode.Surface)" class="cursor-pointer">
-            <SquareMousePointer class="mr-2 h-4 w-4"></SquareMousePointer>
+            <SquareMousePointer class="mr-1 h-4 w-4"></SquareMousePointer>
             Surface calibration
           </DropdownMenuItem>
         </DropdownMenuContent>

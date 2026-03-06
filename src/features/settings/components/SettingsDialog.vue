@@ -14,12 +14,26 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  formatLengthInUnit,
+  getLengthUnitLabel,
+  getLengthUnitOptionLabel,
+  getSurfaceUnitOptionLabel,
+  isMeasurementUnit,
+} from '@/features/settings/model/measurementUnits'
 import { ThemeMode, applyThemeMode, persistThemeMode, readThemeMode, resolveThemeStorage } from '@/lib/theme'
-import { GRID_SPACING_OPTIONS, type GridSpacing } from '@/types/domain'
+import {
+  GRID_SPACING_OPTIONS,
+  MEASUREMENT_UNIT_OPTIONS,
+  type GridSpacing,
+  type MeasurementUnit,
+} from '@/types/domain'
 
 const props = defineProps<{
   open: boolean
   metersPerPixel: number
+  lengthUnit: MeasurementUnit
+  surfaceUnit: MeasurementUnit
   gridVisible: boolean
   gridSpacing: GridSpacing
   gridSnap: boolean
@@ -27,15 +41,35 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
+  updateLengthUnit: [unit: MeasurementUnit]
+  updateSurfaceUnit: [unit: MeasurementUnit]
   updateGridVisible: [enabled: boolean]
   updateGridSpacing: [spacing: GridSpacing]
   updateGridSnap: [enabled: boolean]
 }>()
 
+const lengthUnitValue = computed(() => props.lengthUnit)
+const surfaceUnitValue = computed(() => props.surfaceUnit)
 const spacingValue = computed(() => String(props.gridSpacing))
 const themeStorage = resolveThemeStorage()
 const themeMode = ref(readThemeMode(themeStorage))
 const darkModeEnabled = computed(() => themeMode.value === ThemeMode.Dark)
+
+function updateLengthUnit(value: unknown): void {
+  if (!isMeasurementUnit(value)) {
+    return
+  }
+
+  emit('updateLengthUnit', value)
+}
+
+function updateSurfaceUnit(value: unknown): void {
+  if (!isMeasurementUnit(value)) {
+    return
+  }
+
+  emit('updateSurfaceUnit', value)
+}
 
 function updateGridVisibility(checked: boolean | 'indeterminate'): void {
   emit('updateGridVisible', checked === true)
@@ -74,20 +108,73 @@ function updateThemeMode(checked: boolean | 'indeterminate'): void {
           <Settings class="h-5 w-5" />
           Settings
         </DialogTitle>
-        <DialogDescription>Current scale, grid, and appearance settings for this floor.</DialogDescription>
+        <DialogDescription>Current units, scale, grid, and appearance settings for this floor.</DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4">
-        <div class="rounded-md border bg-muted/40 p-3 text-sm">
-          Current scale: <strong>1 px = {{ props.metersPerPixel.toFixed(4) }} m</strong>
-        </div>
+        <section class="space-y-3 rounded-md border p-3">
+          <div class="text-sm font-medium">Measurements</div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <Label>Length unit</Label>
+              <Select :model-value="lengthUnitValue" @update:model-value="updateLengthUnit">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select length unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="unit in MEASUREMENT_UNIT_OPTIONS"
+                    :key="unit"
+                    :value="unit"
+                  >
+                    {{ getLengthUnitOptionLabel(unit) }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div class="space-y-1">
+              <Label>Surface unit</Label>
+              <Select :model-value="surfaceUnitValue" @update:model-value="updateSurfaceUnit">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select surface unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="unit in MEASUREMENT_UNIT_OPTIONS"
+                    :key="`surface-${unit}`"
+                    :value="unit"
+                  >
+                    {{ getSurfaceUnitOptionLabel(unit) }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+
+          <p class="text-sm">
+            Current scale:
+            <strong>
+              1 px = {{ formatLengthInUnit(props.metersPerPixel, props.lengthUnit) }} {{ getLengthUnitLabel(props.lengthUnit) }}
+            </strong>
+          </p>
+        </section>
 
         <section class="space-y-3 rounded-md border p-3">
           <div class="text-sm font-medium">Grid</div>
 
-          <div class="flex items-center gap-2">
-            <Checkbox :checked="props.gridVisible" @update:checked="updateGridVisibility" />
-            <Label>Show grid</Label>
+          <div class="flex gap-4">
+            <div class="flex items-center gap-2">
+              <Checkbox :checked="props.gridVisible" @update:checked="updateGridVisibility" />
+              <Label>Show grid</Label>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <Checkbox :checked="props.gridSnap" @update:checked="updateGridSnap" />
+              <Label>Snap to grid</Label>
+            </div>
           </div>
 
           <div class="space-y-1">
@@ -98,16 +185,12 @@ function updateThemeMode(checked: boolean | 'indeterminate'): void {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="spacing in GRID_SPACING_OPTIONS" :key="spacing" :value="String(spacing)">
-                  {{ spacing }} m
+                  {{ formatLengthInUnit(spacing, props.lengthUnit) }} {{ getLengthUnitLabel(props.lengthUnit) }}
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div class="flex items-center gap-2">
-            <Checkbox :checked="props.gridSnap" @update:checked="updateGridSnap" />
-            <Label>Snap to grid</Label>
-          </div>
         </section>
 
         <section class="space-y-3 rounded-md border p-3">

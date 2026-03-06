@@ -26,6 +26,22 @@ export type ScaleCalibrationMode = (typeof ScaleCalibrationMode)[keyof typeof Sc
 export const GRID_SPACING_OPTIONS = [0.0625, 0.125, 0.25, 0.5, 1] as const
 export type GridSpacing = (typeof GRID_SPACING_OPTIONS)[number]
 
+export const MeasurementUnit = {
+  Meter: 'm',
+  Centimeter: 'cm',
+  Foot: 'ft',
+  Inch: 'in',
+} as const
+
+export type MeasurementUnit = (typeof MeasurementUnit)[keyof typeof MeasurementUnit]
+
+export const MEASUREMENT_UNIT_OPTIONS = [
+  MeasurementUnit.Meter,
+  MeasurementUnit.Centimeter,
+  MeasurementUnit.Foot,
+  MeasurementUnit.Inch,
+] as const
+
 export interface PointMeters {
   x: number
   y: number
@@ -92,6 +108,8 @@ export interface FloorModel {
   planImage: PlanImageModel | null
   scale: ScaleModel
   grid: GridModel
+  lengthUnit?: MeasurementUnit
+  surfaceUnit?: MeasurementUnit
   rooms: RoomModel[]
   roomsAreaSqm?: number
   furnitures: FurnitureModel[]
