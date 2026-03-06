@@ -140,6 +140,27 @@ describe('floorActions', () => {
     expect(template.position).toEqual({ x: 3.75, y: 2.25 })
   })
 
+  it('creates furniture from preset dimensions, label, and color', () => {
+    const floor = structuredClone(floorFixture)
+    const template = createFurnitureTemplate(
+      floor,
+      null,
+      { x: 2, y: 1.5 },
+      {
+        id: 'preset_1',
+        name: 'Queen Bed',
+        widthMeters: 2,
+        depthMeters: 1.6,
+        fillColor: '#abc',
+      },
+    )
+
+    expect(template.label).toBe('Queen Bed')
+    expect(template.widthMeters).toBe(2)
+    expect(template.depthMeters).toBe(1.6)
+    expect(template.fillColor).toBe('#aabbcc')
+  })
+
   it('duplicates furniture with preserved geometry and valid room assignment', () => {
     const floor = structuredClone(floorFixture)
     const sourceFurniture = floor.furnitures[0]

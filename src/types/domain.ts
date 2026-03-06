@@ -78,6 +78,14 @@ export interface FurnitureModel {
   visible: boolean
 }
 
+export interface FurniturePresetModel {
+  id: string
+  name: string
+  widthMeters: number
+  depthMeters: number
+  fillColor: string
+}
+
 export interface FloorModel {
   id: string
   name: string

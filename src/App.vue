@@ -15,12 +15,15 @@ import { useCanvasClipboard } from '@/features/clipboard/useCanvasClipboard'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
 import {
   bootstrapFloorState,
+  createFurniturePresetFromFurniture,
   createEmptyFloor,
+  deleteFurniturePreset,
   deleteFloor,
+  listFurniturePresets,
   saveFloor,
   setCurrentFloorId,
 } from '@/storage/db'
-import { ScaleCalibrationMode, type FloorModel, type LayerNode } from '@/types/domain'
+import { ScaleCalibrationMode, type FloorModel, type FurniturePresetModel, type LayerNode } from '@/types/domain'
 
 const canvasEngine = ref<CanvasEngine | null>(null)
 const floors = ref<FloorModel[]>([])
@@ -29,6 +32,7 @@ const currentFloorId = ref('')
 const layerTree = ref<LayerNode | null>(null)
 const selectedLayerId = ref<string | null>(null)
 const selectedLayerSnapshot = ref<LayerEditSnapshot | null>(null)
+const furniturePresets = ref<FurniturePresetModel[]>([])
 const layersOpen = ref(true)
 const settingsOpen = ref(false)
 const floorsOpen = ref(false)
@@ -92,10 +96,14 @@ const { bindClipboardHandlers, unbindClipboardHandlers, handlePlanUpload } = use
 
 onMounted(async () => {
   bindClipboardHandlers()
-  const bootstrappedState = await bootstrapFloorState()
+  const [bootstrappedState, bootstrappedFurniturePresets] = await Promise.all([
+    bootstrapFloorState(),
+    listFurniturePresets(),
+  ])
   floors.value = bootstrappedState.floors
   currentFloor.value = bootstrappedState.currentFloor
   currentFloorId.value = bootstrappedState.currentFloor.id
+  furniturePresets.value = bootstrappedFurniturePresets
   if (canvasEngine.value) {
     canvasEngine.value.loadFloor(bootstrappedState.currentFloor)
   }
@@ -390,13 +398,45 @@ function calibrateRoomSurface(layerId: string): void {
   canvasContextMenuOpen.value = false
 }
 
-function addFurniture(): void {
+function addFurniture(presetId: string | null = null): void {
   if (!canvasEngine.value || !currentFloor.value) {
     return
   }
 
+  const preset = presetId
+    ? furniturePresets.value.find((candidate) => candidate.id === presetId) ?? null
+    : null
   const roomMatch = currentFloor.value.rooms.find((room) => room.id === selectedLayerId.value)
-  canvasEngine.value.addFurniture(roomMatch?.id ?? null, canvasEngine.value.getViewportCenter())
+  canvasEngine.value.addFurniture(roomMatch?.id ?? null, canvasEngine.value.getViewportCenter(), preset)
+}
+
+function addFurnitureFromPreset(presetId: string): void {
+  addFurniture(presetId)
+}
+
+async function saveFurniturePresetFromLayer(layerId: string): Promise<void> {
+  if (!currentFloor.value) {
+    return
+  }
+
+  const furniture = currentFloor.value.furnitures.find((candidate) => candidate.id === layerId)
+  if (!furniture) {
+    return
+  }
+
+  furniturePresets.value = await createFurniturePresetFromFurniture(
+    {
+      label: furniture.label,
+      widthMeters: furniture.widthMeters,
+      depthMeters: furniture.depthMeters,
+      fillColor: furniture.fillColor,
+    },
+    furniture.label,
+  )
+}
+
+async function deleteFurniturePresetFromToolbar(presetId: string): Promise<void> {
+  furniturePresets.value = await deleteFurniturePreset(presetId)
 }
 
 function selectLayer(layerId: string): void {
@@ -553,6 +593,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
           @bring-to-front="bringLayerToFront"
           @bring-to-back="bringLayerToBack"
           @edit-layer="openLayerEdit"
+          @save-furniture-preset="saveFurniturePresetFromLayer"
           @calibrate-layer="calibrateRoomSurface"
           @delete-layer="deleteLayerFromPanel"
         />
@@ -567,9 +608,12 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
     <Toolbar
       :drawing-room="drawingRoom"
       :calibrating="calibratingScale"
+      :furniture-presets="furniturePresets"
       @upload-plan="handlePlanUpload"
       @toggle-room-drawing="toggleRoomDrawing"
       @add-furniture="addFurniture"
+      @add-furniture-from-preset="addFurnitureFromPreset"
+      @delete-furniture-preset="deleteFurniturePresetFromToolbar"
       @start-calibration="startScaleCalibration"
       @open-settings="settingsOpen = true"
       @open-floors="floorsOpen = true"
@@ -587,6 +631,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       @rename-layer="renameLayer"
       @delete-layer="deleteLayerFromPanel"
       @edit-layer="openLayerEdit"
+      @save-furniture-preset="saveFurniturePresetFromLayer"
       @calibrate-layer="calibrateRoomSurface"
     />
 

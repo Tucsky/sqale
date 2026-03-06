@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Lock, Pencil, Ruler, Trash2, Unlock } from 'lucide-vue-next'
+import { BookmarkPlus, Eye, EyeOff, Lock, Pencil, Ruler, Trash2, Unlock } from 'lucide-vue-next'
 
 import {
   ContextMenuContent,
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   bringToFront: [layerId: string]
   bringToBack: [layerId: string]
   editLayer: [layerId: string]
+  saveFurniturePreset: [layerId: string]
   calibrateLayer: [layerId: string]
   deleteLayer: [layerId: string]
 }>()
@@ -50,6 +51,14 @@ const emit = defineEmits<{
     <ContextMenuItem @select="emit('editLayer', props.layerId)">
       <Pencil class="mr-2 h-4 w-4" />
       Edit
+    </ContextMenuItem>
+
+    <ContextMenuItem
+      v-if="props.layerType === LayerType.Furniture"
+      @select="emit('saveFurniturePreset', props.layerId)"
+    >
+      <BookmarkPlus class="mr-2 h-4 w-4" />
+      Save
     </ContextMenuItem>
 
     <ContextMenuItem v-if="props.layerType === LayerType.Room" @select="emit('calibrateLayer', props.layerId)">

@@ -38,6 +38,7 @@ const emit = defineEmits<{
   renameLayer: [layerId: string, name: string]
   deleteLayer: [layerId: string]
   editLayer: [layerId: string]
+  saveFurniturePreset: [layerId: string]
   calibrateLayer: [layerId: string]
 }>()
 
@@ -154,6 +155,12 @@ function beginRename(node: LayerNode): void {
 
   editingLayerId.value = node.id
   editingName.value = node.name
+
+  nextTick(() => {
+    const renameInput = document.getElementById(`layer-rename-${node.id}`) as HTMLInputElement | null
+    renameInput?.focus()
+    renameInput?.select()
+  })
 }
 
 function commitRename(): void {
@@ -200,7 +207,7 @@ function getIconComponent(layerType: LayerType) {
 <template>
   <aside
     ref="panelElement"
-    class="absolute right-4 top-20 z-20 w-72 max-h-[70vh] overflow-y-auto rounded-lg border bg-background/95 p-2 shadow-panel backdrop-blur"
+    class="absolute right-4 top-20 z-20 min-w-48 max-w-72 max-h-[70vh] overflow-y-auto rounded-lg border bg-background/95 p-2 shadow-panel backdrop-blur"
   >
     <div class="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Layers</div>
 
@@ -209,33 +216,35 @@ function getIconComponent(layerType: LayerType) {
         <ContextMenuTrigger as-child>
           <div
             :data-layer-row-id="row.node.id"
-            class="group flex items-center gap-1 rounded-md px-1 py-1 text-sm"
-            :class="props.selectedLayerId === row.node.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/70'"
-            :style="{ paddingLeft: `${row.depth * 14 + 6}px` }"
+            class="group flex items-center gap-1 rounded-md px-2 text-sm h-10"
+            :class="props.selectedLayerId === row.node.id ? 'bg-accent text-accent-foreground' : 'hover:bg-accent'"
+            :style="{ paddingLeft: `${row.depth * 6 + 8}px` }"
             @click="emit('selectLayer', row.node.id)"
             @dblclick="handleRowDoubleClick($event, row.node)"
           >
-            <button
+            <Button
               v-if="row.node.children.length > 0"
-              class="h-5 w-5 rounded"
+              class="h-5 w-5 p-0 mr-2"
+              variant="ghost"
               @click.stop="toggleCollapsed(row.node.id)"
             >
               <ChevronRight v-if="collapsedById[row.node.id]" class="h-4 w-4" />
               <ChevronDown v-else class="h-4 w-4" />
-            </button>
-            <span v-else class="inline-block h-5 w-5" />
+            </Button>
+            <span v-else class="inline-block h-5 w-5 mr-2" />
 
             <component :is="getIconComponent(row.node.type)" class="h-4 w-4 text-muted-foreground" />
 
             <Input
               v-if="editingLayerId === row.node.id"
+              :id="`layer-rename-${row.node.id}`"
               v-model="editingName"
-              class="h-7 min-w-0 flex-1"
+              class="h-7 min-w-0 flex-1 ml-1 mr-2"
               @keydown.enter="commitRename"
               @blur="commitRename"
               @dblclick.stop
             />
-            <span v-else data-layer-name class="min-w-0 mr-auto truncate" @dblclick.stop="beginRename(row.node)">
+            <span v-else data-layer-name class="min-w-0 pl-1 pr-2 mr-auto truncate" @dblclick.stop="beginRename(row.node)">
               {{ row.node.name }}
             </span>
 
@@ -268,6 +277,7 @@ function getIconComponent(layerType: LayerType) {
           @bring-to-front="emit('bringToFront', row.node.id)"
           @bring-to-back="emit('bringToBack', row.node.id)"
           @edit-layer="emit('editLayer', row.node.id)"
+          @save-furniture-preset="emit('saveFurniturePreset', row.node.id)"
           @calibrate-layer="emit('calibrateLayer', row.node.id)"
           @delete-layer="emit('deleteLayer', row.node.id)"
         />

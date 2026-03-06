@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Box, Image, Menu, Ruler, Settings, Square, Layers, SplinePointer, SquareMousePointer } from 'lucide-vue-next'
+import {
+  Box,
+  Image,
+  Layers,
+  Menu,
+  Plus,
+  Ruler,
+  Settings,
+  SplinePointer,
+  Square,
+  SquareMousePointer,
+  Trash2,
+} from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -10,17 +22,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Menubar } from '@/components/ui/menubar'
-import { ScaleCalibrationMode } from '@/types/domain'
+import { ScaleCalibrationMode, type FurniturePresetModel } from '@/types/domain'
 
 const props = defineProps<{
   drawingRoom: boolean
   calibrating: boolean
+  furniturePresets: FurniturePresetModel[]
 }>()
 
 const emit = defineEmits<{
   uploadPlan: [file: File]
   toggleRoomDrawing: []
   addFurniture: []
+  addFurnitureFromPreset: [presetId: string]
+  deleteFurniturePreset: [presetId: string]
   startCalibration: [mode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]]
   openSettings: []
   openFloors: []
@@ -41,6 +56,10 @@ function handleFileSelection(event: Event): void {
 
   emit('uploadPlan', file)
   target.value = ''
+}
+
+function formatPresetSize(widthMeters: number, depthMeters: number): string {
+  return `${widthMeters.toFixed(2)} x ${depthMeters.toFixed(2)}`
 }
 </script>
 
@@ -68,24 +87,59 @@ function handleFileSelection(event: Event): void {
 
       <Button size="sm" variant="ghost" @click="openFilePicker">
         <Image class="h-4 w-4" />
-        Upload plan
+        Upload
       </Button>
 
       <Button size="sm" :variant="props.drawingRoom ? 'default' : 'ghost'" @click="emit('toggleRoomDrawing')">
         <Square class="h-4 w-4" />
-        {{ props.drawingRoom ? 'Cancel room' : 'Draw room' }}
+        {{ props.drawingRoom ? 'Cancel room' : 'Room' }}
       </Button>
 
-      <Button size="sm" variant="ghost" @click="emit('addFurniture')">
-        <Box class="h-4 w-4" />
-        Add furniture
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button size="sm" variant="ghost">
+            <Box class="h-4 w-4" />
+            Furniture
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-64">
+          <DropdownMenuItem @select="emit('addFurniture')" class="cursor-pointer">
+            <Plus class="mr-2 h-4 w-4" />
+            Furniture
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            v-for="preset in props.furniturePresets"
+            :key="preset.id"
+            @select="emit('addFurnitureFromPreset', preset.id)"
+            class="cursor-pointer"
+          >
+            <span class="inline-block h-3 w-3 rounded-full" :style="{ backgroundColor: preset.fillColor }" />
+            <span class="min-w-0 flex-1 truncate">{{ preset.name }}</span>
+            <span class="text-xs text-muted-foreground">{{ formatPresetSize(preset.widthMeters, preset.depthMeters) }}</span>
+            <button
+              type="button"
+              class="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10"
+              @pointerdown.stop
+              @pointerup.stop
+              @mousedown.stop
+              @mouseup.stop
+              @click.stop.prevent="emit('deleteFurniturePreset', preset.id)"
+            >
+              <Trash2 class="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuItem>
+          <DropdownMenuItem v-if="props.furniturePresets.length === 0" disabled>
+            No presets available
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button size="sm" :variant="props.calibrating ? 'default' : 'ghost'">
             <Ruler class="h-4 w-4" />
-            Calibrate scale
+            Calibrate
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-52">

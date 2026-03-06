@@ -8,7 +8,7 @@ import { buildLayerTree } from '@/features/layers/model/layerModel'
 import { createId } from '@/lib/utils'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
 import { fitObjectInViewport } from '@/features/canvas/engine/viewportFit'
-import { EngineMode, LayerType, ScaleCalibrationMode, type CalibrationResult, type FloorModel, type FurnitureModel, type GridSpacing, type LayerNode, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
+import { EngineMode, LayerType, ScaleCalibrationMode, type CalibrationResult, type FloorModel, type FurnitureModel, type FurniturePresetModel, type GridSpacing, type LayerNode, type PlanImageModel, type PointMeters, type RoomModel } from '@/types/domain'
 export interface CanvasEngineCallbacks {
   onFloorUpdated?: (floor: FloorModel) => void
   onLayerTreeChanged?: (layerTree: LayerNode) => void
@@ -158,11 +158,15 @@ export class CanvasEngineCore {
     this.draftRoomPoints = []
     this.emitChange()
   }
-  addFurniture(targetRoomId: string | null = null, spawnPosition: PointMeters = { x: 0, y: 0 }): void {
+  addFurniture(
+    targetRoomId: string | null = null,
+    spawnPosition: PointMeters = { x: 0, y: 0 },
+    preset: FurniturePresetModel | null = null,
+  ): void {
     if (!this.floor) {
       return
     }
-    const furniture = createFurnitureTemplate(this.floor, targetRoomId, spawnPosition)
+    const furniture = createFurnitureTemplate(this.floor, targetRoomId, spawnPosition, preset)
     this.insertFurniture(furniture)
   }
   insertFurniture(furniture: FurnitureModel): void {
