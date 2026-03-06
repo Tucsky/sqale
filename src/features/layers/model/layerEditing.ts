@@ -1,5 +1,5 @@
 import type { EngineFabricObject } from '@/features/canvas/engine/canvasObjects'
-import { LayerType, type FloorModel } from '@/types/domain'
+import { LayerType, MIN_CANVAS_OBJECT_SIZE_METERS, type FloorModel } from '@/types/domain'
 
 export interface LayerEditSnapshot {
   id: string
@@ -103,8 +103,8 @@ export function buildLayerEditSnapshot(
 }
 
 export function applyLayerFrameToSceneObject(sceneObject: EngineFabricObject, nextFrame: LayerFrameInput): boolean {
-  const nextWidth = Math.max(0.05, nextFrame.width)
-  const nextHeight = Math.max(0.05, nextFrame.height)
+  const nextWidth = Math.max(MIN_CANVAS_OBJECT_SIZE_METERS, nextFrame.width)
+  const nextHeight = Math.max(MIN_CANVAS_OBJECT_SIZE_METERS, nextFrame.height)
   if (!sceneObject.sqaleType) {
     return false
   }

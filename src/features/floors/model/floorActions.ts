@@ -3,7 +3,7 @@ import { snapValue, type EngineFabricObject } from '@/features/canvas/engine/can
 import { DEFAULT_FURNITURE_FILL_COLOR, normalizeFurnitureFillColor } from '@/features/furniture/model/furnitureColors'
 import { calibrateMetersPerPixel, calibrateMetersPerPixelFromArea } from '@/features/canvas/math/scale'
 import { createId } from '@/lib/utils'
-import type { FloorModel, FurnitureModel, FurniturePresetModel, PointMeters } from '@/types/domain'
+import { MIN_CANVAS_OBJECT_SIZE_METERS, type FloorModel, type FurnitureModel, type FurniturePresetModel, type PointMeters } from '@/types/domain'
 
 export function applyScaleCalibration(
   floor: FloorModel,
@@ -73,8 +73,8 @@ export function createFurnitureTemplate(
     label: presetLabel && presetLabel.length > 0 ? presetLabel : `Furniture ${floor.furnitures.length + 1}`,
     fillColor: normalizeFurnitureFillColor(preset?.fillColor ?? DEFAULT_FURNITURE_FILL_COLOR),
     position: { x: position.x, y: position.y },
-    widthMeters: Math.max(0.05, preset?.widthMeters ?? 1),
-    depthMeters: Math.max(0.05, preset?.depthMeters ?? 0.6),
+    widthMeters: Math.max(MIN_CANVAS_OBJECT_SIZE_METERS, preset?.widthMeters ?? 1),
+    depthMeters: Math.max(MIN_CANVAS_OBJECT_SIZE_METERS, preset?.depthMeters ?? 0.6),
     rotationDeg: 0,
     roomId,
     opacity: 1,

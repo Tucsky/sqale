@@ -1,4 +1,4 @@
-import { MeasurementUnit, type MeasurementUnit as MeasurementUnitValue } from '@/types/domain'
+import { MeasurementUnit, MIN_CANVAS_OBJECT_SIZE_METERS, type MeasurementUnit as MeasurementUnitValue } from '@/types/domain'
 
 const METERS_PER_UNIT: Record<MeasurementUnitValue, number> = {
   [MeasurementUnit.Meter]: 1,
@@ -15,6 +15,13 @@ const LENGTH_PRECISION: Record<MeasurementUnitValue, number> = {
 }
 
 const AREA_PRECISION: Record<MeasurementUnitValue, number> = {
+  [MeasurementUnit.Meter]: 2,
+  [MeasurementUnit.Centimeter]: 0,
+  [MeasurementUnit.Foot]: 2,
+  [MeasurementUnit.Inch]: 2,
+}
+
+const LENGTH_INPUT_PRECISION: Record<MeasurementUnitValue, number> = {
   [MeasurementUnit.Meter]: 2,
   [MeasurementUnit.Centimeter]: 0,
   [MeasurementUnit.Foot]: 2,
@@ -92,11 +99,15 @@ export function formatAreaInUnit(valueSquareMeters: number, unit: MeasurementUni
   return squareMetersToUnit(valueSquareMeters, unit).toFixed(AREA_PRECISION[unit])
 }
 
+export function normalizeLengthInputValue(valueInUnit: number, unit: MeasurementUnitValue): number {
+  return Number(valueInUnit.toFixed(LENGTH_INPUT_PRECISION[unit]))
+}
+
 function roundInputValue(value: number): number {
   return Number(value.toFixed(4))
 }
 
-export function getLengthInputMin(unit: MeasurementUnitValue, minMeters: number = 0.05): number {
+export function getLengthInputMin(unit: MeasurementUnitValue, minMeters: number = MIN_CANVAS_OBJECT_SIZE_METERS): number {
   return roundInputValue(metersToUnit(minMeters, unit))
 }
 

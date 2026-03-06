@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MeasurementUnit } from '@/types/domain'
+import { MeasurementUnit, MIN_CANVAS_OBJECT_SIZE_METERS } from '@/types/domain'
 import {
   formatAreaInUnit,
   formatLengthInUnit,
@@ -10,6 +10,7 @@ import {
   getLengthInputStep,
   getAreaUnitLabel,
   getLengthUnitLabel,
+  normalizeLengthInputValue,
   getSurfaceUnitOptionLabel,
   metersToUnit,
   resolveMeasurementUnit,
@@ -41,9 +42,14 @@ describe('measurementUnits', () => {
   })
 
   it('derives input bounds from canonical meter-based constraints', () => {
-    expect(getLengthInputMin(MeasurementUnit.Centimeter)).toBe(5)
+    expect(getLengthInputMin(MeasurementUnit.Centimeter)).toBe(metersToUnit(MIN_CANVAS_OBJECT_SIZE_METERS, MeasurementUnit.Centimeter))
     expect(getLengthInputStep(MeasurementUnit.Centimeter)).toBe(1)
     expect(getAreaInputStep(MeasurementUnit.Centimeter)).toBe(100)
+  })
+
+  it('normalizes length input precision per unit', () => {
+    expect(normalizeLengthInputValue(123.6, MeasurementUnit.Centimeter)).toBe(124)
+    expect(normalizeLengthInputValue(1.234, MeasurementUnit.Meter)).toBe(1.23)
   })
 
   it('falls back to meters for unknown persisted values', () => {

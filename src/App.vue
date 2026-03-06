@@ -448,27 +448,22 @@ function selectLayer(layerId: string): void {
 
 function toggleLayerVisibility(layerId: string): void {
   canvasEngine.value?.toggleVisibility(layerId)
-  syncSelectedLayerSnapshot()
 }
 
 function toggleLayerLock(layerId: string): void {
   canvasEngine.value?.toggleLock(layerId)
-  syncSelectedLayerSnapshot()
 }
 
 function renameLayer(layerId: string, name: string): void {
   canvasEngine.value?.renameLayer(layerId, name)
-  syncSelectedLayerSnapshot()
 }
 
 function bringLayerToFront(layerId: string): void {
   canvasEngine.value?.bringLayerToFront(layerId)
-  syncSelectedLayerSnapshot()
 }
 
 function bringLayerToBack(layerId: string): void {
   canvasEngine.value?.bringLayerToBack(layerId)
-  syncSelectedLayerSnapshot()
 }
 
 function openLayerEdit(layerId: string): void {
@@ -486,22 +481,18 @@ function openLayerEdit(layerId: string): void {
 
 function applyLayerFrame(payload: { layerId: string; x: number; y: number; width: number; height: number }): void {
   canvasEngine.value?.updateLayerFrame(payload.layerId, payload.x, payload.y, payload.width, payload.height)
-  syncSelectedLayerSnapshot()
 }
 
 function applyLayerOpacity(payload: { layerId: string; opacity: number }): void {
   canvasEngine.value?.updateLayerOpacity(payload.layerId, payload.opacity)
-  syncSelectedLayerSnapshot()
 }
 
 function applyLayerColor(payload: { layerId: string; fillColor: string }): void {
   canvasEngine.value?.updateFurnitureColor(payload.layerId, payload.fillColor)
-  syncSelectedLayerSnapshot()
 }
 
 function applyLayerName(payload: { layerId: string; name: string }): void {
   canvasEngine.value?.renameLayer(payload.layerId, payload.name)
-  syncSelectedLayerSnapshot()
 }
 
 function applySelectionSize(payload: { layerId: string; width: number; height: number }): void {
@@ -516,7 +507,6 @@ function applySelectionSize(payload: { layerId: string; width: number; height: n
     payload.width,
     payload.height,
   )
-  syncSelectedLayerSnapshot()
 }
 
 function deleteLayerFromPanel(layerId: string): void {

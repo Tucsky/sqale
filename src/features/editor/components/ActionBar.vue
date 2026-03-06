@@ -14,6 +14,7 @@ import {
   getLengthInputStep,
   getLengthUnitLabel,
   metersToUnit,
+  normalizeLengthInputValue,
   unitToMeters,
 } from '@/features/settings/model/measurementUnits'
 import { ScaleCalibrationMode, type MeasurementUnit } from '@/types/domain'
@@ -41,16 +42,47 @@ const emit = defineEmits<{
 const widthValue = ref(0)
 const heightValue = ref(0)
 const LENGTH_COMPARE_EPSILON = 1e-6
+const editingSizeInput = ref(false)
+
+/**
+ * Mirrors selected-layer dimensions into local input refs unless the user is actively typing.
+ * This prevents watcher write-back from interrupting in-progress edits.
+ */
+function syncSizeValuesFromSelection(selectedLayer: LayerEditSnapshot | null, lengthUnit: MeasurementUnit): void {
+  if (!selectedLayer || editingSizeInput.value) {
+    return
+  }
+
+  const nextWidthValue = normalizeLengthInputValue(metersToUnit(selectedLayer.width, lengthUnit), lengthUnit)
+  const nextHeightValue = normalizeLengthInputValue(metersToUnit(selectedLayer.height, lengthUnit), lengthUnit)
+  if (
+    Math.abs(nextWidthValue - widthValue.value) <= LENGTH_COMPARE_EPSILON
+    && Math.abs(nextHeightValue - heightValue.value) <= LENGTH_COMPARE_EPSILON
+  ) {
+    return
+  }
+
+  widthValue.value = nextWidthValue
+  heightValue.value = nextHeightValue
+}
+
+function handleSizeInputFocus(): void {
+  editingSizeInput.value = true
+}
+
+function handleSizeInputBlur(): void {
+  editingSizeInput.value = false
+  syncSizeValuesFromSelection(props.selectedLayer, props.lengthUnit)
+}
 
 watch(
-  () => [props.selectedLayer, props.lengthUnit] as const,
-  ([selectedLayer, lengthUnit]) => {
-    if (!selectedLayer) {
-      return
+  () => [props.selectedLayer?.id, props.selectedLayer?.width, props.selectedLayer?.height, props.lengthUnit] as const,
+  ([selectedLayerId], previousState) => {
+    const previousLayerId = previousState?.[0]
+    if (selectedLayerId !== previousLayerId) {
+      editingSizeInput.value = false
     }
-
-    widthValue.value = metersToUnit(selectedLayer.width, lengthUnit)
-    heightValue.value = metersToUnit(selectedLayer.height, lengthUnit)
+    syncSizeValuesFromSelection(props.selectedLayer, props.lengthUnit)
   },
   { immediate: true },
 )
@@ -64,8 +96,10 @@ watch(
       return
     }
 
-    const widthMeters = unitToMeters(width, lengthUnit)
-    const heightMeters = unitToMeters(height, lengthUnit)
+    const normalizedWidth = normalizeLengthInputValue(width, lengthUnit)
+    const normalizedHeight = normalizeLengthInputValue(height, lengthUnit)
+    const widthMeters = unitToMeters(normalizedWidth, lengthUnit)
+    const heightMeters = unitToMeters(normalizedHeight, lengthUnit)
     if (
       Math.abs(widthMeters - props.selectedLayer.width) <= LENGTH_COMPARE_EPSILON
       && Math.abs(heightMeters - props.selectedLayer.height) <= LENGTH_COMPARE_EPSILON
@@ -86,8 +120,8 @@ const selectedSurface = computed(() => {
     return 0
   }
 
-  const widthMeters = unitToMeters(widthValue.value, props.lengthUnit)
-  const heightMeters = unitToMeters(heightValue.value, props.lengthUnit)
+  const widthMeters = unitToMeters(normalizeLengthInputValue(widthValue.value, props.lengthUnit), props.lengthUnit)
+  const heightMeters = unitToMeters(normalizeLengthInputValue(heightValue.value, props.lengthUnit), props.lengthUnit)
   return projectLayerSurfaceSqm(props.selectedLayer, widthMeters, heightMeters)
 })
 const lengthUnitLabel = computed(() => getLengthUnitLabel(props.lengthUnit))
@@ -140,12 +174,28 @@ const showSelectionAction = computed(() => !props.calibrating && !props.drawingR
       </template>
 
       <template v-else-if="props.selectedLayer">
-        <StretchHorizontal class="h-4 w-4 text-muted-foreground" />
+        <StretchHorizontal class="h-4 w-4 text-muted-foreground shrink-0" />
         <span class="text-sm font-medium">{{ props.selectedLayer.name }}</span>
-        <Input v-model.number="widthValue" type="text" :min="lengthInputMin" :step="lengthInputStep" class="h-8 w-16 px-2" />
+        <Input
+          v-model.number="widthValue"
+          type="text"
+          :min="lengthInputMin"
+          :step="lengthInputStep"
+          class="h-8 w-16 px-2"
+          @focus="handleSizeInputFocus"
+          @blur="handleSizeInputBlur"
+        />
         ×
-        <Input v-model.number="heightValue" type="text" :min="lengthInputMin" :step="lengthInputStep" class="h-8 w-16 px-2" />
-        <span class="text-sm text-muted-foreground">Surface {{ formatAreaInUnit(selectedSurface, props.surfaceUnit) }} {{ areaUnitLabel }}</span>
+        <Input
+          v-model.number="heightValue"
+          type="text"
+          :min="lengthInputMin"
+          :step="lengthInputStep"
+          class="h-8 w-16 px-2"
+          @focus="handleSizeInputFocus"
+          @blur="handleSizeInputBlur"
+        />
+        <span class="text-sm text-muted-foreground">Surface {{ formatAreaInUnit(selectedSurface, props.surfaceUnit) }} {{ areaUnitLabel }}</span>
       </template>
     </div>
   </div>

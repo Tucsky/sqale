@@ -22,6 +22,7 @@ import {
   getLengthInputStep,
   getLengthUnitLabel,
   metersToUnit,
+  normalizeLengthInputValue,
   unitToMeters,
 } from '@/features/settings/model/measurementUnits'
 import { LayerType, type MeasurementUnit } from '@/types/domain'
@@ -49,21 +50,61 @@ const heightValue = ref(0)
 const opacityValue = ref(1)
 const fillColorValue = ref(DEFAULT_FURNITURE_FILL_COLOR)
 const LENGTH_COMPARE_EPSILON = 1e-6
+const editingFrameInput = ref(false)
+
+/**
+ * Keeps frame inputs aligned with selected layer values without interrupting active typing.
+ */
+function syncFrameValuesFromTarget(target: LayerEditSnapshot | null, lengthUnit: MeasurementUnit): void {
+  if (!target || editingFrameInput.value) {
+    return
+  }
+
+  const nextXValue = normalizeLengthInputValue(metersToUnit(target.x, lengthUnit), lengthUnit)
+  const nextYValue = normalizeLengthInputValue(metersToUnit(target.y, lengthUnit), lengthUnit)
+  const nextWidthValue = normalizeLengthInputValue(metersToUnit(target.width, lengthUnit), lengthUnit)
+  const nextHeightValue = normalizeLengthInputValue(metersToUnit(target.height, lengthUnit), lengthUnit)
+  if (
+    Math.abs(nextXValue - xValue.value) <= LENGTH_COMPARE_EPSILON
+    && Math.abs(nextYValue - yValue.value) <= LENGTH_COMPARE_EPSILON
+    && Math.abs(nextWidthValue - widthValue.value) <= LENGTH_COMPARE_EPSILON
+    && Math.abs(nextHeightValue - heightValue.value) <= LENGTH_COMPARE_EPSILON
+  ) {
+    return
+  }
+
+  xValue.value = nextXValue
+  yValue.value = nextYValue
+  widthValue.value = nextWidthValue
+  heightValue.value = nextHeightValue
+}
+
+function handleFrameInputFocus(): void {
+  editingFrameInput.value = true
+}
+
+function handleFrameInputBlur(): void {
+  editingFrameInput.value = false
+  syncFrameValuesFromTarget(props.target, props.lengthUnit)
+}
 
 watch(
   () => [props.open, props.target, props.lengthUnit] as const,
-  ([isOpen, target, lengthUnit]) => {
+  ([isOpen, target, lengthUnit], previousState) => {
+    const wasOpen = previousState?.[0] ?? false
+    const previousTarget = previousState?.[1] ?? null
     if (!isOpen || !target) {
+      editingFrameInput.value = false
       return
+    }
+    if (!wasOpen || target.id !== previousTarget?.id) {
+      editingFrameInput.value = false
     }
 
     labelValue.value = target.name
-    xValue.value = metersToUnit(target.x, lengthUnit)
-    yValue.value = metersToUnit(target.y, lengthUnit)
-    widthValue.value = metersToUnit(target.width, lengthUnit)
-    heightValue.value = metersToUnit(target.height, lengthUnit)
     opacityValue.value = target.opacity
     fillColorValue.value = target.fillColor ?? DEFAULT_FURNITURE_FILL_COLOR
+    syncFrameValuesFromTarget(target, lengthUnit)
   },
   { immediate: true },
 )
@@ -76,8 +117,8 @@ const surfaceSqm = computed(() => {
     return 0
   }
 
-  const widthMeters = unitToMeters(widthValue.value, props.lengthUnit)
-  const heightMeters = unitToMeters(heightValue.value, props.lengthUnit)
+  const widthMeters = unitToMeters(normalizeLengthInputValue(widthValue.value, props.lengthUnit), props.lengthUnit)
+  const heightMeters = unitToMeters(normalizeLengthInputValue(heightValue.value, props.lengthUnit), props.lengthUnit)
   return projectLayerSurfaceSqm(props.target, widthMeters, heightMeters)
 })
 const lengthUnitLabel = computed(() => getLengthUnitLabel(props.lengthUnit))
@@ -121,10 +162,14 @@ watch(
       return
     }
 
-    const xMeters = unitToMeters(x, lengthUnit)
-    const yMeters = unitToMeters(y, lengthUnit)
-    const widthMeters = unitToMeters(width, lengthUnit)
-    const heightMeters = unitToMeters(height, lengthUnit)
+    const normalizedX = normalizeLengthInputValue(x, lengthUnit)
+    const normalizedY = normalizeLengthInputValue(y, lengthUnit)
+    const normalizedWidth = normalizeLengthInputValue(width, lengthUnit)
+    const normalizedHeight = normalizeLengthInputValue(height, lengthUnit)
+    const xMeters = unitToMeters(normalizedX, lengthUnit)
+    const yMeters = unitToMeters(normalizedY, lengthUnit)
+    const widthMeters = unitToMeters(normalizedWidth, lengthUnit)
+    const heightMeters = unitToMeters(normalizedHeight, lengthUnit)
     if (
       Math.abs(xMeters - props.target.x) <= LENGTH_COMPARE_EPSILON
       && Math.abs(yMeters - props.target.y) <= LENGTH_COMPARE_EPSILON
@@ -218,22 +263,36 @@ function handleLabelBlur(): void {
           <div class="grid grid-cols-2 gap-3">
             <label class="space-y-1 text-sm">
               <Label>X ({{ lengthUnitLabel }})</Label>
-              <Input v-model.number="xValue" type="number" :step="lengthInputStep" />
+              <Input v-model.number="xValue" type="number" :step="lengthInputStep" @focus="handleFrameInputFocus" @blur="handleFrameInputBlur" />
             </label>
 
             <label class="space-y-1 text-sm">
               <Label>Y ({{ lengthUnitLabel }})</Label>
-              <Input v-model.number="yValue" type="number" :step="lengthInputStep" />
+              <Input v-model.number="yValue" type="number" :step="lengthInputStep" @focus="handleFrameInputFocus" @blur="handleFrameInputBlur" />
             </label>
 
             <label class="space-y-1 text-sm">
               <Label>Width ({{ lengthUnitLabel }})</Label>
-              <Input v-model.number="widthValue" type="number" :min="lengthInputMin" :step="lengthInputStep" />
+              <Input
+                v-model.number="widthValue"
+                type="number"
+                :min="lengthInputMin"
+                :step="lengthInputStep"
+                @focus="handleFrameInputFocus"
+                @blur="handleFrameInputBlur"
+              />
             </label>
 
             <label class="space-y-1 text-sm">
               <Label>Height ({{ lengthUnitLabel }})</Label>
-              <Input v-model.number="heightValue" type="number" :min="lengthInputMin" :step="lengthInputStep" />
+              <Input
+                v-model.number="heightValue"
+                type="number"
+                :min="lengthInputMin"
+                :step="lengthInputStep"
+                @focus="handleFrameInputFocus"
+                @blur="handleFrameInputBlur"
+              />
             </label>
           </div>
 

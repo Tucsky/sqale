@@ -42,6 +42,8 @@ export const MEASUREMENT_UNIT_OPTIONS = [
   MeasurementUnit.Inch,
 ] as const
 
+export const MIN_CANVAS_OBJECT_SIZE_METERS = 0.05
+
 export interface PointMeters {
   x: number
   y: number

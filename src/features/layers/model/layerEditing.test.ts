@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { projectLayerSurfaceSqm, type LayerEditSnapshot } from '@/features/layers/model/layerEditing'
-import { LayerType } from '@/types/domain'
+import type { EngineFabricObject } from '@/features/canvas/engine/canvasObjects'
+import { applyLayerFrameToSceneObject, projectLayerSurfaceSqm, type LayerEditSnapshot } from '@/features/layers/model/layerEditing'
+import { LayerType, MIN_CANVAS_OBJECT_SIZE_METERS } from '@/types/domain'
 
 const roomSnapshot: LayerEditSnapshot = {
   id: 'room_1',
@@ -34,6 +35,36 @@ const furnitureSnapshot: LayerEditSnapshot = {
 }
 
 describe('layerEditing', () => {
+  it('clamps furniture frame dimensions to shared minimum object size', () => {
+    const updates: Record<string, number | string>[] = []
+    const sceneObject = {
+      sqaleType: LayerType.Furniture,
+      set(payload: Record<string, number | string>) {
+        updates.push(payload)
+      },
+      setCoords() {},
+    } as unknown as EngineFabricObject
+
+    const applied = applyLayerFrameToSceneObject(sceneObject, {
+      x: 1.2,
+      y: 2.4,
+      width: 0.004,
+      height: 0.009,
+    })
+
+    expect(applied).toBe(true)
+    expect(updates).toEqual([
+      {
+        left: 1.2,
+        top: 2.4,
+        width: MIN_CANVAS_OBJECT_SIZE_METERS,
+        height: MIN_CANVAS_OBJECT_SIZE_METERS,
+        scaleX: 1,
+        scaleY: 1,
+      },
+    ])
+  })
+
   it('projects room surface from canonical polygon area and dimension ratios', () => {
     const projectedSurfaceSqm = projectLayerSurfaceSqm(roomSnapshot, 8, 6)
     expect(projectedSurfaceSqm).toBe(40)
