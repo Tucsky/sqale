@@ -1,5 +1,9 @@
 # Sqale
 
+<p align="center">
+  <img src="sqale.png" width="700"/>
+</p>
+
 ## Intro
 
 Sqale is a client-side floor plan editor for turning rough rental-ad floor plan images into something you can actually reason with.
