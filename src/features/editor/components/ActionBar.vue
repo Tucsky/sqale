@@ -45,52 +45,30 @@ const emit = defineEmits<{
 const widthValue = ref(0)
 const heightValue = ref(0)
 const LENGTH_COMPARE_EPSILON = 1e-6
-const editingSizeInput = ref(false)
-
-/**
- * Mirrors selected-layer dimensions into local input refs unless the user is actively typing.
- * This prevents watcher write-back from interrupting in-progress edits.
- */
-function syncSizeValuesFromSelection(selectedLayer: LayerEditSnapshot | null, lengthUnit: MeasurementUnit): void {
-  if (!selectedLayer || editingSizeInput.value) {
-    return
-  }
-
-  const nextWidthValue = normalizeLengthInputValue(metersToUnit(selectedLayer.width, lengthUnit), lengthUnit)
-  const nextHeightValue = normalizeLengthInputValue(metersToUnit(selectedLayer.height, lengthUnit), lengthUnit)
-  if (
-    Math.abs(nextWidthValue - widthValue.value) <= LENGTH_COMPARE_EPSILON
-    && Math.abs(nextHeightValue - heightValue.value) <= LENGTH_COMPARE_EPSILON
-  ) {
-    return
-  }
-
-  widthValue.value = nextWidthValue
-  heightValue.value = nextHeightValue
-}
-
-function handleSizeInputFocus(): void {
-  editingSizeInput.value = true
-}
-
-function handleSizeInputBlur(): void {
-  editingSizeInput.value = false
-  syncSizeValuesFromSelection(props.selectedLayer, props.lengthUnit)
-}
 
 watch(
-  () => [props.selectedLayer?.id, props.selectedLayer?.width, props.selectedLayer?.height, props.lengthUnit] as const,
-  ([selectedLayerId], previousState) => {
-    const previousLayerId = previousState?.[0]
-    if (selectedLayerId !== previousLayerId) {
-      editingSizeInput.value = false
+  [
+    () => props.selectedLayer?.width,
+    () => props.selectedLayer?.height,
+    () => props.lengthUnit,
+  ],
+  ([selectedWidth, selectedHeight, lengthUnit]) => {
+    if (typeof selectedWidth !== 'number' || typeof selectedHeight !== 'number') {
+      return
     }
-    syncSizeValuesFromSelection(props.selectedLayer, props.lengthUnit)
+
+    widthValue.value = normalizeLengthInputValue(metersToUnit(selectedWidth, lengthUnit), lengthUnit)
+    heightValue.value = normalizeLengthInputValue(metersToUnit(selectedHeight, lengthUnit), lengthUnit)
   },
   { immediate: true },
 )
 watch(
-  () => [props.selectedLayer?.id, widthValue.value, heightValue.value, props.lengthUnit] as const,
+  [
+    () => props.selectedLayer?.id,
+    widthValue,
+    heightValue,
+    () => props.lengthUnit,
+  ],
   ([layerId, width, height, lengthUnit]) => {
     if (!layerId || !props.selectedLayer) {
       return
@@ -196,8 +174,6 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
           :min="lengthInputMin"
           :step="lengthInputStep"
           class="h-8 w-16 px-2"
-          @focus="handleSizeInputFocus"
-          @blur="handleSizeInputBlur"
         />
         ×
         <Input
@@ -206,8 +182,6 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
           :min="lengthInputMin"
           :step="lengthInputStep"
           class="h-8 w-16 px-2"
-          @focus="handleSizeInputFocus"
-          @blur="handleSizeInputBlur"
         />
         <span class="text-sm text-muted-foreground">Surface {{ formatAreaInUnit(selectedSurface, props.surfaceUnit) }} {{ areaUnitLabel }}</span>
       </template>
