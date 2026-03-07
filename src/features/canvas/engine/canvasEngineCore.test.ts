@@ -94,6 +94,28 @@ describe('canvasEngineCore loadFloor interaction reset', () => {
     expect(engine.getDraftRoomPointsCount()).toBe(0)
   })
 
+  it('resets measure mode and calibration points when loading another floor', () => {
+    const engine = new TestCanvasEngineCore({} as HTMLCanvasElement)
+    engine.startMeasuring()
+
+    engine.loadFloor(floorFixture)
+
+    expect(engine.getModeValue()).toBe(EngineMode.Idle)
+    expect(engine.getCalibrationPointsCount()).toBe(0)
+  })
+
+  it('enters and exits measure mode without touching room draft points', () => {
+    const engine = new TestCanvasEngineCore({} as HTMLCanvasElement)
+
+    engine.startMeasuring()
+    expect(engine.getModeValue()).toBe(EngineMode.MeasureDistance)
+    expect(engine.getDraftRoomPointsCount()).toBe(0)
+
+    engine.cancelMeasuring()
+    expect(engine.getModeValue()).toBe(EngineMode.Idle)
+    expect(engine.getCalibrationPointsCount()).toBe(0)
+  })
+
   it('updates floor units without changing canonical geometry state', () => {
     const engine = new TestCanvasEngineCore({} as HTMLCanvasElement)
     engine.loadFloor(floorFixture)

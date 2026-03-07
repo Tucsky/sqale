@@ -16,6 +16,7 @@ export interface CanvasEngineCallbacks {
   onLayerContextMenuRequested?: (layerId: string | null) => void
   onLayerDoubleClicked?: (layerId: string) => void
   onCalibrationMeasured?: (calibration: CalibrationResult) => void
+  onDistanceMeasured?: (distanceMeters: number) => void
   onRoomDraftChanged?: (draft: { isClosed: boolean; areaSqm: number }) => void
 }
 export class CanvasEngineCore {
@@ -72,10 +73,21 @@ export class CanvasEngineCore {
     this.canvas.discardActiveObject()
     this.canvas.requestRenderAll()
   }
+  startMeasuring(): void {
+    this.mode = EngineMode.MeasureDistance
+    this.calibrationPoints = []
+    this.draftRoomPoints = []
+    this.canvas.discardActiveObject()
+    this.canvas.requestRenderAll()
+  }
   cancelCalibration(): void {
     this.mode = EngineMode.Idle
     this.calibrationPoints = []
     this.draftRoomPoints = []
+  }
+  cancelMeasuring(): void {
+    this.mode = EngineMode.Idle
+    this.calibrationPoints = []
   }
   setScale(realDistanceMeters: number): void {
     if (!this.floor || this.calibrationPoints.length !== 2) {

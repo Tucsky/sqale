@@ -46,6 +46,8 @@ const roomDraftClosed = ref(false)
 const roomDraftAreaSqm = ref(0)
 const drawingRoom = ref(false)
 const calibratingScale = ref(false)
+const measuringDistance = ref(false)
+const measuredDistance = ref(0)
 const calibrationMode = ref<(typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode] | null>(null)
 const scaleDialogCalibrationMode = ref<(typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]>(
   ScaleCalibrationMode.TwoPoint,
@@ -157,6 +159,9 @@ function setupCanvasEngine(canvasElement: HTMLCanvasElement): void {
     onCalibrationMeasured(calibration) {
       measuredCalibrationDistance.value = calibration.measuredDistance
     },
+    onDistanceMeasured(distanceMeters) {
+      measuredDistance.value = distanceMeters
+    },
     onRoomDraftChanged(draft) {
       roomDraftClosed.value = draft.isClosed
       roomDraftAreaSqm.value = draft.areaSqm
@@ -229,6 +234,7 @@ async function selectFloor(nextFloorId: string): Promise<void> {
   if (canvasEngine.value) {
     canvasEngine.value.cancelRoomDrawing()
     canvasEngine.value.cancelCalibration()
+    canvasEngine.value.cancelMeasuring()
   }
 
   currentFloorId.value = nextFloorId
@@ -244,6 +250,8 @@ async function selectFloor(nextFloorId: string): Promise<void> {
   roomDraftClosed.value = false
   roomDraftAreaSqm.value = 0
   calibratingScale.value = false
+  measuringDistance.value = false
+  measuredDistance.value = 0
   calibrationMode.value = null
   scaleDialogRoomId.value = null
   scaleDialogOpen.value = false
@@ -264,6 +272,9 @@ function toggleRoomDrawing(): void {
 
   if (calibratingScale.value) {
     cancelScaleCalibration()
+  }
+  if (measuringDistance.value) {
+    cancelDistanceMeasure()
   }
 
   canvasEngine.value.startRoomDrawing()
@@ -301,6 +312,9 @@ function startScaleCalibration(mode: (typeof ScaleCalibrationMode)[keyof typeof 
   if (drawingRoom.value) {
     cancelRoomDrawing()
   }
+  if (measuringDistance.value) {
+    cancelDistanceMeasure()
+  }
 
   if (calibratingScale.value) {
     canvasEngine.value.cancelCalibration()
@@ -315,6 +329,38 @@ function startScaleCalibration(mode: (typeof ScaleCalibrationMode)[keyof typeof 
   roomDraftAreaSqm.value = 0
   scaleDialogRoomId.value = null
   scaleDialogOpen.value = false
+}
+
+function toggleDistanceMeasure(): void {
+  if (!canvasEngine.value) {
+    return
+  }
+
+  if (measuringDistance.value) {
+    cancelDistanceMeasure()
+    return
+  }
+
+  if (drawingRoom.value) {
+    cancelRoomDrawing()
+  }
+  if (calibratingScale.value) {
+    cancelScaleCalibration()
+  }
+
+  canvasEngine.value.startMeasuring()
+  measuringDistance.value = true
+  measuredDistance.value = 0
+}
+
+function cancelDistanceMeasure(): void {
+  if (!canvasEngine.value) {
+    return
+  }
+
+  canvasEngine.value.cancelMeasuring()
+  measuringDistance.value = false
+  measuredDistance.value = 0
 }
 
 function cancelScaleCalibration(): void {
@@ -390,6 +436,9 @@ function calibrateRoomSurface(layerId: string): void {
 
   if (calibratingScale.value) {
     cancelScaleCalibration()
+  }
+  if (measuringDistance.value) {
+    cancelDistanceMeasure()
   }
   if (drawingRoom.value) {
     cancelRoomDrawing()
@@ -601,6 +650,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
     <Toolbar
       :drawing-room="drawingRoom"
       :calibrating="calibratingScale"
+      :measuring="measuringDistance"
       :furniture-presets="furniturePresets"
       :length-unit="lengthUnit"
       @upload-plan="handlePlanUpload"
@@ -609,6 +659,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       @add-furniture-from-preset="addFurnitureFromPreset"
       @delete-furniture-preset="deleteFurniturePresetFromToolbar"
       @start-calibration="startScaleCalibration"
+      @toggle-measure="toggleDistanceMeasure"
       @open-settings="settingsOpen = true"
       @open-floors="floorsOpen = true"
     />
@@ -634,8 +685,10 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       :room-draft-closed="roomDraftClosed"
       :room-draft-area-sqm="roomDraftAreaSqm"
       :calibrating="calibratingScale"
+      :measuring="measuringDistance"
       :calibration-mode="calibrationMode"
       :measured-calibration-distance="measuredCalibrationDistance"
+      :measured-distance="measuredDistance"
       :selected-layer="selectedLayerSnapshot"
       :length-unit="lengthUnit"
       :surface-unit="surfaceUnit"
@@ -643,6 +696,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
       @cancel-room-drawing="cancelRoomDrawing"
       @confirm-calibration="openScaleDialog"
       @cancel-calibration="cancelScaleCalibration"
+      @cancel-measure="cancelDistanceMeasure"
       @apply-selected-size="applySelectionSize"
     />
 

@@ -24,8 +24,10 @@ const props = defineProps<{
   roomDraftClosed: boolean
   roomDraftAreaSqm: number
   calibrating: boolean
+  measuring: boolean
   calibrationMode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode] | null
   measuredCalibrationDistance: number
+  measuredDistance: number
   selectedLayer: LayerEditSnapshot | null
   lengthUnit: MeasurementUnit
   surfaceUnit: MeasurementUnit
@@ -36,6 +38,7 @@ const emit = defineEmits<{
   cancelRoomDrawing: []
   confirmCalibration: []
   cancelCalibration: []
+  cancelMeasure: []
   applySelectedSize: [payload: { layerId: string; width: number; height: number }]
 }>()
 
@@ -128,11 +131,11 @@ const lengthUnitLabel = computed(() => getLengthUnitLabel(props.lengthUnit))
 const areaUnitLabel = computed(() => getAreaUnitLabel(props.surfaceUnit))
 const lengthInputMin = computed(() => getLengthInputMin(props.lengthUnit))
 const lengthInputStep = computed(() => getLengthInputStep(props.lengthUnit))
-const showSelectionAction = computed(() => !props.calibrating && !props.drawingRoom && Boolean(props.selectedLayer))
+const showSelectionAction = computed(() => !props.calibrating && !props.measuring && !props.drawingRoom && Boolean(props.selectedLayer))
 </script>
 
 <template>
-  <div v-if="props.calibrating || props.drawingRoom || showSelectionAction" class="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+  <div v-if="props.calibrating || props.measuring || props.drawingRoom || showSelectionAction" class="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
     <div class="flex items-center gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-panel backdrop-blur">
       <template v-if="props.calibrating">
         <Ruler class="h-4 w-4 text-muted-foreground" />
@@ -159,6 +162,17 @@ const showSelectionAction = computed(() => !props.calibrating && !props.drawingR
           {{ props.calibrationMode === ScaleCalibrationMode.TwoPoint ? 'Confirm points' : 'Confirm surface' }}
         </Button>
         <Button size="sm" variant="secondary" @click="emit('cancelCalibration')">Cancel</Button>
+      </template>
+
+      <template v-else-if="props.measuring">
+        <Ruler class="h-4 w-4 text-muted-foreground" />
+        <span class="text-sm text-muted-foreground">
+          <template v-if="props.measuredDistance <= 0">Measure in progress: click two points on the plan.</template>
+          <template v-else>
+            Distance: {{ formatLengthInUnit(props.measuredDistance, props.lengthUnit) }} {{ lengthUnitLabel }}. Drag points to refine.
+          </template>
+        </span>
+        <Button size="sm" variant="secondary" @click="emit('cancelMeasure')">Done</Button>
       </template>
 
       <template v-else-if="props.drawingRoom">

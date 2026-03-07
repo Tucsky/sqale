@@ -12,6 +12,7 @@ export const EngineMode = {
   Idle: 'idle',
   DrawRoom: 'drawRoom',
   CalibrateScale: 'calibrateScale',
+  MeasureDistance: 'measureDistance',
 } as const
 
 export type EngineMode = (typeof EngineMode)[keyof typeof EngineMode]

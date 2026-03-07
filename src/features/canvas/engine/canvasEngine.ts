@@ -64,11 +64,23 @@ export class CanvasEngine extends CanvasEngineCore {
     this.activateSketchMode()
     this.emitRoomDraftStatus()
   }
+  override startMeasuring(): void {
+    super.startMeasuring()
+    this.draftOverlays.resetCalibration(this.canvas)
+    this.activateSketchMode()
+    this.emitDistanceMeasurement()
+  }
   override cancelCalibration(): void {
     super.cancelCalibration()
     this.draftOverlays.resetAll(this.canvas)
     this.deactivateSketchMode()
     this.emitRoomDraftStatus()
+  }
+  override cancelMeasuring(): void {
+    super.cancelMeasuring()
+    this.draftOverlays.resetCalibration(this.canvas)
+    this.deactivateSketchMode()
+    this.emitDistanceMeasurement()
   }
   override setScale(realDistanceMeters: number): void {
     const shouldExitCalibration = this.scaleCalibrationMode === ScaleCalibrationMode.TwoPoint && this.calibrationPoints.length === 2
@@ -244,6 +256,17 @@ export class CanvasEngine extends CanvasEngineCore {
       this.emitRoomDraftStatus()
       return
     }
+    if (this.mode === EngineMode.MeasureDistance) {
+      if (this.draftOverlays.isDraftHandle(event.target, 'calibration')) {
+        return
+      }
+      this.draftOverlays.placeCalibrationPoint(this.canvas, this.calibrationPoints, {
+        x: pointer.x,
+        y: pointer.y,
+      })
+      this.emitDistanceMeasurement()
+      return
+    }
     const transformEvent = event as fabric.IEvent<MouseEvent> & { transform?: fabric.Transform }
     if (!event.target && !transformEvent.transform && !this.canvas.getActiveObject()) {
       this.isPanning = true
@@ -316,6 +339,11 @@ export class CanvasEngine extends CanvasEngineCore {
         return
       }
     }
+    if (this.mode === EngineMode.MeasureDistance && this.draftOverlays.isDraftHandle(movingObject, 'calibration')) {
+      this.draftOverlays.syncCalibrationDraftHandle(this.canvas, this.calibrationPoints, movingObject)
+      this.emitDistanceMeasurement()
+      return
+    }
     if (!this.floor?.grid.snap || movingObject.sqaleType !== LayerType.Furniture) {
       return
     }
@@ -352,6 +380,19 @@ export class CanvasEngine extends CanvasEngineCore {
       secondPoint,
       measuredDistance: distanceMeters(firstPoint, secondPoint),
     })
+  }
+  private emitDistanceMeasurement(): void {
+    if (this.calibrationPoints.length !== 2) {
+      this.callbacks.onDistanceMeasured?.(0)
+      return
+    }
+    const firstPoint = this.calibrationPoints[0]
+    const secondPoint = this.calibrationPoints[1]
+    if (!firstPoint || !secondPoint) {
+      this.callbacks.onDistanceMeasured?.(0)
+      return
+    }
+    this.callbacks.onDistanceMeasured?.(distanceMeters(firstPoint, secondPoint))
   }
   private emitRoomDraftStatus(): void {
     const isClosed = this.draftOverlays.isRoomClosed()

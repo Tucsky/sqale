@@ -12,6 +12,7 @@ import {
   Square,
   SquareMousePointer,
   Trash2,
+  DraftingCompass,
 } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ import { ScaleCalibrationMode, type FurniturePresetModel, type MeasurementUnit }
 const props = defineProps<{
   drawingRoom: boolean
   calibrating: boolean
+  measuring: boolean
   furniturePresets: FurniturePresetModel[]
   lengthUnit: MeasurementUnit
 }>()
@@ -39,6 +41,7 @@ const emit = defineEmits<{
   addFurnitureFromPreset: [presetId: string]
   deleteFurniturePreset: [presetId: string]
   startCalibration: [mode: (typeof ScaleCalibrationMode)[keyof typeof ScaleCalibrationMode]]
+  toggleMeasure: []
   openSettings: []
   openFloors: []
 }>()
@@ -142,7 +145,7 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button size="sm" :variant="props.calibrating ? 'default' : 'ghost'">
-            <Ruler class="h-4 w-4" />
+            <DraftingCompass class="h-4 w-4" />
             Calibrate
           </Button>
         </DropdownMenuTrigger>
@@ -157,6 +160,11 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Button size="sm" :variant="props.measuring ? 'default' : 'ghost'" @click="emit('toggleMeasure')">
+        <Ruler class="h-4 w-4" />
+        {{ props.measuring ? 'Cancel measure' : 'Measure' }}
+      </Button>
     </Menubar>
 
     <input ref="fileInput" type="file" accept="image/png,image/jpeg" class="hidden" @change="handleFileSelection" />
