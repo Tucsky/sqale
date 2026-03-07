@@ -169,7 +169,7 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
         <StretchHorizontal class="h-4 w-4 text-muted-foreground shrink-0" />
         <span class="text-sm font-medium">{{ props.selectedLayer.name }}</span>
         <Input
-          v-model.number="widthValue"
+          v-model.lazy.number="widthValue"
           type="text"
           :min="lengthInputMin"
           :step="lengthInputStep"
@@ -177,7 +177,7 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
         />
         ×
         <Input
-          v-model.number="heightValue"
+          v-model.lazy.number="heightValue"
           type="text"
           :min="lengthInputMin"
           :step="lengthInputStep"
