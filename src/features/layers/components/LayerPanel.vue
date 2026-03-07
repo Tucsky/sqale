@@ -207,7 +207,7 @@ function getIconComponent(layerType: LayerType) {
 <template>
   <aside
     ref="panelElement"
-    class="absolute right-4 top-20 z-20 min-w-48 max-w-72 max-h-[70vh] overflow-y-auto rounded-lg border bg-background/95 p-2 shadow-panel backdrop-blur"
+    class="absolute right-3 top-16 sm:right-4 z-20 min-w-48 max-w-72 max-h-[80vh] overflow-y-auto rounded-md border bg-background/95 p-2 shadow-panel backdrop-blur"
   >
     <div class="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Layers</div>
 

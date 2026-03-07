@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Ruler, Square, StretchHorizontal } from 'lucide-vue-next'
+import { Check, Ruler, Square, StretchHorizontal, X } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -116,18 +116,18 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
   <div v-if="props.calibrating || props.measuring || props.drawingRoom || showSelectionAction" class="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
     <div class="flex items-center gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-panel backdrop-blur">
       <template v-if="props.calibrating">
-        <Ruler class="h-4 w-4 text-muted-foreground" />
+        <Ruler class="h-4 w-4 text-muted-foreground shrink-0" />
         <span class="text-sm text-muted-foreground">
           <template v-if="props.calibrationMode === ScaleCalibrationMode.TwoPoint">
-            <template v-if="props.measuredCalibrationDistance <= 0">Two-point calibration in progress: click two points on the plan.</template>
+            <template v-if="props.measuredCalibrationDistance <= 0">Click two points to calibrate.</template>
             <template v-else>
-              Calibration points set ({{ formatLengthInUnit(props.measuredCalibrationDistance, props.lengthUnit) }} {{ lengthUnitLabel }}). Confirm or adjust points.
+              <strong class="text-foreground">{{ formatLengthInUnit(props.measuredCalibrationDistance, props.lengthUnit) }} {{ lengthUnitLabel }}</strong>: Confirm or adjust points.
             </template>
           </template>
           <template v-else>
-            <template v-if="!props.roomDraftClosed">Surface calibration in progress: draw and close the polygon on the plan.</template>
+            <template v-if="!props.roomDraftClosed">Draw a surface to calibrate.</template>
             <template v-else>
-              Calibration surface set ({{ formatAreaInUnit(props.roomDraftAreaSqm, props.surfaceUnit) }} {{ areaUnitLabel }}). Confirm or adjust polygon.
+              <strong class="text-foreground">{{ formatAreaInUnit(props.roomDraftAreaSqm, props.surfaceUnit) }} {{ areaUnitLabel }}</strong>: Confirm or adjust polygon.
             </template>
           </template>
         </span>
@@ -136,33 +136,47 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
             || (props.calibrationMode === ScaleCalibrationMode.Surface && props.roomDraftClosed && props.roomDraftAreaSqm > 0)"
           size="sm"
           @click="emit('confirmCalibration')"
+          class="px-2 sm:px-3"
         >
-          {{ props.calibrationMode === ScaleCalibrationMode.TwoPoint ? 'Confirm points' : 'Confirm surface' }}
+          <Check></Check>
+          <span class="hidden sm:inline">{{ props.calibrationMode === ScaleCalibrationMode.TwoPoint ? 'Confirm points' : 'Confirm surface' }}</span>
         </Button>
-        <Button size="sm" variant="secondary" @click="emit('cancelCalibration')">Cancel</Button>
+        <Button size="sm" variant="secondary" @click="emit('cancelCalibration')" class="px-2 sm:px-3">
+          <X></X>
+          <span class="hidden sm:inline">Cancel</span>
+        </Button>
       </template>
 
       <template v-else-if="props.measuring">
-        <Ruler class="h-4 w-4 text-muted-foreground" />
+        <Ruler class="h-4 w-4 text-muted-foreground shrink-0" />
         <span class="text-sm text-muted-foreground">
-          <template v-if="props.measuredDistance <= 0">Measure in progress: click two points on the plan.</template>
+          <template v-if="props.measuredDistance <= 0">Click two points to measure.</template>
           <template v-else>
-            Distance: {{ formatLengthInUnit(props.measuredDistance, props.lengthUnit) }} {{ lengthUnitLabel }}. Drag points to refine.
+            Distance: <strong class="text-foreground">{{ formatLengthInUnit(props.measuredDistance, props.lengthUnit) }} {{ lengthUnitLabel }}</strong>
           </template>
         </span>
-        <Button size="sm" variant="secondary" @click="emit('cancelMeasure')">Done</Button>
+        <Button size="sm" variant="secondary" @click="emit('cancelMeasure')" class="px-2 sm:px-3">
+          <X class="sm:hidden"></X>
+          <span class="hidden sm:inline">Done</span>
+        </Button>
       </template>
 
       <template v-else-if="props.drawingRoom">
-        <Square class="h-4 w-4 text-muted-foreground" />
+        <Square class="h-4 w-4 text-muted-foreground shrink-0" />
         <div class="flex flex-col">
-          <span class="text-sm text-muted-foreground">Room drawing in progress. Close the polygon and finish when ready.</span>
+          <span class="text-sm text-muted-foreground">Close polygon to finish.</span>
           <span v-if="props.roomDraftClosed" class="text-xs text-muted-foreground">
             Current surface: {{ formatAreaInUnit(props.roomDraftAreaSqm, props.surfaceUnit) }} {{ areaUnitLabel }}
           </span>
         </div>
-        <Button size="sm" @click="emit('finishRoom')">Finish room</Button>
-        <Button size="sm" variant="secondary" @click="emit('cancelRoomDrawing')">Cancel</Button>
+        <Button size="sm" @click="emit('finishRoom')" class="px-2 sm:px-3">
+          <Check></Check>
+          <span class="hidden sm:inline">Finish room</span>
+        </Button>
+        <Button size="sm" variant="secondary" @click="emit('cancelRoomDrawing')" class="px-2 sm:px-3">
+          <X></X>
+          <span class="hidden sm:inline">Cancel</span>
+        </Button>
       </template>
 
       <template v-else-if="props.selectedLayer">
@@ -170,7 +184,7 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
         <span class="text-sm font-medium">{{ props.selectedLayer.name }}</span>
         <Input
           v-model.lazy.number="widthValue"
-          type="text"
+          type="number"
           :min="lengthInputMin"
           :step="lengthInputStep"
           class="h-8 w-16 px-2"
@@ -178,7 +192,7 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
         ×
         <Input
           v-model.lazy.number="heightValue"
-          type="text"
+          type="number"
           :min="lengthInputMin"
           :step="lengthInputStep"
           class="h-8 w-16 px-2"
@@ -188,3 +202,10 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
     </div>
   </div>
 </template>
+<style lang="css" scoped>
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+</style>

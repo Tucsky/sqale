@@ -71,13 +71,17 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
 </script>
 
 <template>
-  <div class="pointer-events-none absolute left-4 top-4 z-30">
-    <Menubar class="pointer-events-auto h-auto gap-1 p-1">
+  <div
+    class="pointer-events-none absolute left-3 top-3 z-30 sm:left-4 sm:top-4"
+  >
+    <Menubar
+      class="pointer-events-auto h-auto flex-col items-stretch gap-1 overflow-y-auto p-1 sm:w-auto sm:flex-row sm:items-center sm:overflow-visible"
+    >
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" class="sm:justify-center px-2 sm:px-3">
             <Menu class="h-4 w-4" />
-            Menu
+            <span class="hidden sm:inline">Menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-28">
@@ -92,21 +96,26 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button size="sm" variant="ghost" @click="openFilePicker">
+      <Button size="sm" variant="ghost" class="px-2 sm:px-3" @click="openFilePicker">
         <Image class="h-4 w-4" />
-        Upload
+        <span class="hidden sm:inline">Upload</span>
       </Button>
 
-      <Button size="sm" :variant="props.drawingRoom ? 'default' : 'ghost'" @click="emit('toggleRoomDrawing')">
+      <Button
+        size="sm"
+        :variant="props.drawingRoom ? 'default' : 'ghost'"
+        class="px-2 sm:px-3"
+        @click="emit('toggleRoomDrawing')"
+      >
         <Square class="h-4 w-4" />
-        {{ props.drawingRoom ? 'Cancel room' : 'Room' }}
+        <span class="hidden sm:inline">{{ props.drawingRoom ? 'Cancel room' : 'Room' }}</span>
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button size="sm" variant="ghost">
+          <Button size="sm" variant="ghost" class="px-2 sm:px-3">
             <Box class="h-4 w-4" />
-            Furniture
+            <span class="hidden sm:inline">Furniture</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-64">
@@ -144,9 +153,13 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
 
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button size="sm" :variant="props.calibrating ? 'default' : 'ghost'">
+          <Button
+            size="sm"
+            :variant="props.calibrating ? 'default' : 'ghost'"
+            class="px-2 sm:px-3"
+          >
             <DraftingCompass class="h-4 w-4" />
-            Calibrate
+            <span class="hidden sm:inline">Calibrate</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-48">
@@ -161,9 +174,14 @@ function formatPresetSize(widthMeters: number, depthMeters: number): string {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button size="sm" :variant="props.measuring ? 'default' : 'ghost'" @click="emit('toggleMeasure')">
+      <Button
+        size="sm"
+        :variant="props.measuring ? 'default' : 'ghost'"
+        class="px-2 sm:px-3"
+        @click="emit('toggleMeasure')"
+      >
         <Ruler class="h-4 w-4" />
-        {{ props.measuring ? 'Cancel measure' : 'Measure' }}
+        <span class="hidden sm:inline">{{ props.measuring ? 'Cancel measure' : 'Measure' }}</span>
       </Button>
     </Menubar>
 

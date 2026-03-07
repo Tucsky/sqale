@@ -13,15 +13,14 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="pointer-events-none absolute right-4 top-4 z-30">
+  <div class="pointer-events-none absolute right-3 top-3 z-40 sm:right-4 sm:top-4">
     <Button
       size="sm"
       variant="outline"
-      class="pointer-events-auto"
+      class="pointer-events-auto px-2"
       @click="emit('toggleLayers')"
     >
       <Layers class="h-5 w-5" :class="props.layersOpen ? 'text-primary' : ''" />
-      Layers
     </Button>
   </div>
 </template>
