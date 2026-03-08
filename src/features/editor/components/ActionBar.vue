@@ -113,7 +113,10 @@ const showSelectionAction = computed(() => !props.calibrating && !props.measurin
 </script>
 
 <template>
-  <div v-if="props.calibrating || props.measuring || props.drawingRoom || showSelectionAction" class="absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+  <div
+    v-if="props.calibrating || props.measuring || props.drawingRoom || showSelectionAction"
+    class="absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-1/2 z-20 -translate-x-1/2 px-3 sm:px-0"
+  >
     <div class="flex items-center gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-panel backdrop-blur">
       <template v-if="props.calibrating">
         <Ruler class="h-4 w-4 text-muted-foreground shrink-0" />

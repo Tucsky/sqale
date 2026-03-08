@@ -87,7 +87,7 @@ describe('ActionBar size editing', () => {
     }
 
     widthInput.value = '1'
-    widthInput.dispatchEvent(new Event('input', { bubbles: true }))
+    widthInput.dispatchEvent(new Event('change', { bubbles: true }))
     await flushUpdates(4)
 
     expect(sizeUpdates).toHaveLength(1)
@@ -96,6 +96,44 @@ describe('ActionBar size editing', () => {
       width: 0.01,
       height: 0.72,
     })
+
+    app.unmount()
+  })
+
+  it('uses a safe-area-aware bottom anchor for mobile browsers', async () => {
+    host = document.createElement('div')
+    document.body.append(host)
+
+    const app = createApp(defineComponent({
+      setup() {
+        return () => h(ActionBar, {
+          drawingRoom: true,
+          roomDraftClosed: false,
+          roomDraftAreaSqm: 0,
+          calibrating: false,
+          measuring: false,
+          calibrationMode: null,
+          measuredCalibrationDistance: 0,
+          measuredDistance: 0,
+          selectedLayer: null,
+          lengthUnit: MeasurementUnit.Meter,
+          surfaceUnit: MeasurementUnit.Meter,
+          onFinishRoom: () => undefined,
+          onCancelRoomDrawing: () => undefined,
+          onConfirmCalibration: () => undefined,
+          onCancelCalibration: () => undefined,
+          onCancelMeasure: () => undefined,
+          onApplySelectedSize: () => undefined,
+        })
+      },
+    }))
+
+    app.mount(host)
+    await flushUpdates(1)
+
+    const anchorContainer = host.querySelector('div.absolute')
+    expect(anchorContainer).not.toBeNull()
+    expect(anchorContainer?.className).toContain('bottom-[calc(env(safe-area-inset-bottom)+1rem)]')
 
     app.unmount()
   })

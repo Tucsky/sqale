@@ -12,6 +12,7 @@ import ScaleDialog from '@/features/canvas/components/ScaleDialog.vue'
 import SettingsDialog from '@/features/settings/components/SettingsDialog.vue'
 import { CanvasEngine, type LayerEditSnapshot } from '@/features/canvas/engine/canvasEngine'
 import { useCanvasClipboard } from '@/features/clipboard/useCanvasClipboard'
+import { APP_ROOT_VIEWPORT_CLASS } from '@/features/editor/layout/viewportClasses'
 import { cloneFloorModel } from '@/features/floors/model/floorClone'
 import { resolveMeasurementUnit } from '@/features/settings/model/measurementUnits'
 import {
@@ -616,7 +617,7 @@ async function renameFloorFromDialog(floorId: string, name: string): Promise<voi
 </script>
 
 <template>
-  <main class="canvas-bg relative h-screen w-screen overflow-hidden">
+  <main :class="APP_ROOT_VIEWPORT_CLASS">
     <CanvasView
       :context-menu-open="canvasContextMenuOpen"
       @canvas-ready="setupCanvasEngine"
