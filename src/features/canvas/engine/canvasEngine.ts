@@ -26,6 +26,9 @@ export class CanvasEngine extends CanvasEngineCore {
   private draftOverlays = new DraftOverlays()
   private sketchModeActive = false
   private sceneInteractionStateById = new Map<string, ObjectInteractionState>()
+  private hasPanPointer = false
+  private panPointerClientX = 0
+  private panPointerClientY = 0
   constructor(canvasElement: HTMLCanvasElement, callbacks: CanvasEngineCallbacks = {}) {
     super(canvasElement, callbacks)
     this.bindCanvasEvents()
@@ -216,8 +219,8 @@ export class CanvasEngine extends CanvasEngineCore {
     event.e.preventDefault()
     event.e.stopPropagation()
   }
-  private readonly onMouseDown = (event: fabric.IEvent<MouseEvent>): void => {
-    if (event.e.button === 2) {
+  private readonly onMouseDown = (event: fabric.IEvent<MouseEvent | TouchEvent>): void => {
+    if (!this.isTouchInputEvent(event.e) && event.e.button === 2) {
       this.handleContextMenuTarget(event.target as EngineFabricObject | undefined)
       return
     }
@@ -271,15 +274,43 @@ export class CanvasEngine extends CanvasEngineCore {
     if (!event.target && !transformEvent.transform && !this.canvas.getActiveObject()) {
       this.isPanning = true
       this.canvas.selection = false
+      if (this.isTouchInputEvent(event.e)) {
+        const primaryTouch = event.e.touches[0] ?? event.e.changedTouches[0]
+        if (!primaryTouch) {
+          return
+        }
+        this.panPointerClientX = primaryTouch.clientX
+        this.panPointerClientY = primaryTouch.clientY
+        this.hasPanPointer = true
+      } else {
+        this.hasPanPointer = false
+      }
     }
   }
-  private readonly onMouseMove = (event: fabric.IEvent<MouseEvent>): void => {
+  private readonly onMouseMove = (event: fabric.IEvent<MouseEvent | TouchEvent>): void => {
     if (this.isPanning) {
+      if (this.isTouchInputEvent(event.e)) {
+        const primaryTouch = event.e.touches[0] ?? event.e.changedTouches[0]
+        if (!primaryTouch) {
+          return
+        }
+        if (!this.hasPanPointer) {
+          this.panPointerClientX = primaryTouch.clientX
+          this.panPointerClientY = primaryTouch.clientY
+          this.hasPanPointer = true
+          return
+        }
+        panViewport(this.canvas, primaryTouch.clientX - this.panPointerClientX, primaryTouch.clientY - this.panPointerClientY)
+        this.panPointerClientX = primaryTouch.clientX
+        this.panPointerClientY = primaryTouch.clientY
+        return
+      }
       panViewport(this.canvas, event.e.movementX, event.e.movementY)
     }
   }
   private readonly onMouseUp = (): void => {
     this.isPanning = false
+    this.hasPanPointer = false
     this.canvas.selection = !this.sketchModeActive
     this.syncSceneCoords()
   }
@@ -500,6 +531,9 @@ export class CanvasEngine extends CanvasEngineCore {
     this.canvas.requestRenderAll()
     this.callbacks.onSelectionChanged?.(targetObject.sqaleId)
     this.callbacks.onLayerContextMenuRequested?.(targetObject.sqaleId)
+  }
+  private isTouchInputEvent(pointerEvent: MouseEvent | TouchEvent): pointerEvent is TouchEvent {
+    return 'touches' in pointerEvent
   }
   private syncStackingOrder(): void {
     if (!this.floor) {

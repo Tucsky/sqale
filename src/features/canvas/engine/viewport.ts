@@ -22,10 +22,15 @@ export function panViewport(canvas: fabric.Canvas, deltaX: number, deltaY: numbe
   if (!viewportTransform) {
     return
   }
+  if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
+    return
+  }
 
   const nextViewportTransform = [...viewportTransform]
-  const translateX = nextViewportTransform[4] ?? 0
-  const translateY = nextViewportTransform[5] ?? 0
+  const rawTranslateX = nextViewportTransform[4]
+  const rawTranslateY = nextViewportTransform[5]
+  const translateX = typeof rawTranslateX === 'number' && Number.isFinite(rawTranslateX) ? rawTranslateX : 0
+  const translateY = typeof rawTranslateY === 'number' && Number.isFinite(rawTranslateY) ? rawTranslateY : 0
 
   nextViewportTransform[4] = translateX + deltaX
   nextViewportTransform[5] = translateY + deltaY
