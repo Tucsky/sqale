@@ -54,7 +54,7 @@ export function isMeasurementUnit(value: unknown): value is MeasurementUnitValue
 }
 
 export function resolveMeasurementUnit(unit: MeasurementUnitValue | undefined): MeasurementUnitValue {
-  return isMeasurementUnit(unit) ? unit : MeasurementUnit.Meter
+  return isMeasurementUnit(unit) ? unit : MeasurementUnit.Centimeter
 }
 
 export function getLengthUnitOptionLabel(unit: MeasurementUnitValue): string {

@@ -6,7 +6,8 @@ import { distanceMeters } from '@/features/canvas/math/geometry'
 import { getDraftRoomAreaSqm } from '@/features/canvas/math/roomDraft'
 import { applyLayerFrameToSceneObject, buildLayerEditSnapshot, type LayerEditSnapshot } from '@/features/layers/model/layerEditing'
 import { clamp } from '@/lib/utils'
-import { panViewport, zoomFromWheel } from '@/features/canvas/engine/viewport'
+import { panViewport, zoomFromPinch, zoomFromWheel } from '@/features/canvas/engine/viewport'
+import { shouldStartMousePanOverride } from '@/features/canvas/engine/panOverride'
 import { EngineMode, LayerType, ScaleCalibrationMode, type PointMeters } from '@/types/domain'
 import { CanvasEngineCore, type CanvasEngineCallbacks } from './canvasEngineCore'
 export type { LayerEditSnapshot } from '@/features/layers/model/layerEditing'
@@ -17,6 +18,10 @@ interface ObjectInteractionState {
   selectable: boolean
 }
 const INTERNAL_HELPER_OBJECT_ID = '__sqale_controls_helper__'
+const TOUCH_EVENT_LISTENER_OPTIONS: AddEventListenerOptions = {
+  passive: false,
+  capture: true,
+}
 /**
  * Thin interaction layer: binds Fabric mouse/selection events to core engine logic.
  * Kept as one file because the handlers share mutable Fabric state on hot paths;
@@ -26,13 +31,24 @@ export class CanvasEngine extends CanvasEngineCore {
   private draftOverlays = new DraftOverlays()
   private sketchModeActive = false
   private sceneInteractionStateById = new Map<string, ObjectInteractionState>()
+  private pinchGestureActive = false
+  private pinchDistancePx = 0
+  private pinchMidpointClientX = 0
+  private pinchMidpointClientY = 0
+  private pinchCanvasOffsetX = 0
+  private pinchCanvasOffsetY = 0
   private hasPanPointer = false
   private panPointerClientX = 0
   private panPointerClientY = 0
   constructor(canvasElement: HTMLCanvasElement, callbacks: CanvasEngineCallbacks = {}) {
     super(canvasElement, callbacks)
     this.bindCanvasEvents()
+    this.bindNativeTouchEvents()
     this.ensureControlsHelperObject()
+  }
+  override dispose(): void {
+    this.unbindNativeTouchEvents()
+    super.dispose()
   }
   override loadFloor(nextFloor: Parameters<CanvasEngineCore['loadFloor']>[0]): void {
     this.draftOverlays.resetAll(this.canvas)
@@ -206,6 +222,22 @@ export class CanvasEngine extends CanvasEngineCore {
     this.canvas.on('object:modified', this.onObjectModified)
     this.canvas.on('after:render', this.drawGrid)
   }
+  private bindNativeTouchEvents(): void {
+    // Fabric routes touchmove through a single "main" touch id, which drops many two-finger frames.
+    // We bind native touch listeners to keep pinch gesture streams complete on mobile.
+    const touchSurface = this.canvas.getSelectionElement()
+    touchSurface.addEventListener('touchstart', this.onNativeTouchStart, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.addEventListener('touchmove', this.onNativeTouchMove, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.addEventListener('touchend', this.onNativeTouchEnd, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.addEventListener('touchcancel', this.onNativeTouchEnd, TOUCH_EVENT_LISTENER_OPTIONS)
+  }
+  private unbindNativeTouchEvents(): void {
+    const touchSurface = this.canvas.getSelectionElement()
+    touchSurface.removeEventListener('touchstart', this.onNativeTouchStart, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.removeEventListener('touchmove', this.onNativeTouchMove, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.removeEventListener('touchend', this.onNativeTouchEnd, TOUCH_EVENT_LISTENER_OPTIONS)
+    touchSurface.removeEventListener('touchcancel', this.onNativeTouchEnd, TOUCH_EVENT_LISTENER_OPTIONS)
+  }
   private readonly onMouseWheel = (event: fabric.IEvent<WheelEvent>): void => {
     zoomFromWheel(
       this.canvas,
@@ -220,6 +252,17 @@ export class CanvasEngine extends CanvasEngineCore {
     event.e.stopPropagation()
   }
   private readonly onMouseDown = (event: fabric.IEvent<MouseEvent | TouchEvent>): void => {
+    if (this.isTouchInputEvent(event.e)) {
+      this.canvas.selection = false
+      if (event.e.touches.length > 1) {
+        this.isPanning = false
+        this.hasPanPointer = false
+        return
+      }
+    } else if (shouldStartMousePanOverride(this.mode, event.e)) {
+      this.startMousePanOverride(event.e)
+      return
+    }
     if (!this.isTouchInputEvent(event.e) && event.e.button === 2) {
       this.handleContextMenuTarget(event.target as EngineFabricObject | undefined)
       return
@@ -287,7 +330,19 @@ export class CanvasEngine extends CanvasEngineCore {
       }
     }
   }
+  private startMousePanOverride(mouseEvent: MouseEvent): void {
+    this.isPanning = true
+    this.canvas.selection = false
+    this.hasPanPointer = false
+    mouseEvent.preventDefault()
+    mouseEvent.stopPropagation()
+  }
   private readonly onMouseMove = (event: fabric.IEvent<MouseEvent | TouchEvent>): void => {
+    if (this.isTouchInputEvent(event.e) && event.e.touches.length > 1) {
+      this.isPanning = false
+      this.hasPanPointer = false
+      return
+    }
     if (this.isPanning) {
       if (this.isTouchInputEvent(event.e)) {
         const primaryTouch = event.e.touches[0] ?? event.e.changedTouches[0]
@@ -311,7 +366,9 @@ export class CanvasEngine extends CanvasEngineCore {
   private readonly onMouseUp = (): void => {
     this.isPanning = false
     this.hasPanPointer = false
-    this.canvas.selection = !this.sketchModeActive
+    if (!this.pinchGestureActive) {
+      this.canvas.selection = !this.sketchModeActive
+    }
     this.syncSceneCoords()
   }
   private readonly onMouseDoubleClick = (event: fabric.IEvent<MouseEvent>): void => {
@@ -531,6 +588,105 @@ export class CanvasEngine extends CanvasEngineCore {
     this.canvas.requestRenderAll()
     this.callbacks.onSelectionChanged?.(targetObject.sqaleId)
     this.callbacks.onLayerContextMenuRequested?.(targetObject.sqaleId)
+  }
+  private readonly onNativeTouchStart = (touchEvent: TouchEvent): void => {
+    this.canvas.selection = false
+    if (touchEvent.touches.length < 2) {
+      return
+    }
+
+    this.startPinchGesture(touchEvent)
+    this.consumeNativeTouchEvent(touchEvent)
+  }
+  private readonly onNativeTouchMove = (touchEvent: TouchEvent): void => {
+    if (!this.pinchGestureActive) {
+      if (touchEvent.touches.length >= 2) {
+        this.startPinchGesture(touchEvent)
+        this.consumeNativeTouchEvent(touchEvent)
+      }
+      return
+    }
+
+    if (touchEvent.touches.length < 2) {
+      this.stopPinchGesture()
+      this.syncSceneCoords()
+      return
+    }
+
+    const firstTouch = touchEvent.touches[0]
+    const secondTouch = touchEvent.touches[1]
+    if (!firstTouch || !secondTouch) {
+      return
+    }
+
+    const nextMidpointClientX = (firstTouch.clientX + secondTouch.clientX) * 0.5
+    const nextMidpointClientY = (firstTouch.clientY + secondTouch.clientY) * 0.5
+    const nextDistancePx = this.getTouchDistancePx(firstTouch, secondTouch)
+    panViewport(
+      this.canvas,
+      nextMidpointClientX - this.pinchMidpointClientX,
+      nextMidpointClientY - this.pinchMidpointClientY,
+    )
+    zoomFromPinch(
+      this.canvas,
+      {
+        x: nextMidpointClientX - this.pinchCanvasOffsetX,
+        y: nextMidpointClientY - this.pinchCanvasOffsetY,
+      },
+      this.pinchDistancePx,
+      nextDistancePx,
+    )
+
+    this.pinchDistancePx = nextDistancePx
+    this.pinchMidpointClientX = nextMidpointClientX
+    this.pinchMidpointClientY = nextMidpointClientY
+    this.consumeNativeTouchEvent(touchEvent)
+  }
+  private readonly onNativeTouchEnd = (touchEvent: TouchEvent): void => {
+    if (this.pinchGestureActive && touchEvent.touches.length < 2) {
+      this.stopPinchGesture()
+      this.syncSceneCoords()
+    }
+    if (touchEvent.touches.length === 0) {
+      this.canvas.selection = !this.sketchModeActive
+    }
+  }
+  private startPinchGesture(touchEvent: TouchEvent): void {
+    const firstTouch = touchEvent.touches[0]
+    const secondTouch = touchEvent.touches[1]
+    if (!firstTouch || !secondTouch) {
+      return
+    }
+
+    const touchSurfaceBounds = this.canvas.getSelectionElement().getBoundingClientRect()
+    this.pinchGestureActive = true
+    this.pinchCanvasOffsetX = touchSurfaceBounds.left
+    this.pinchCanvasOffsetY = touchSurfaceBounds.top
+    this.pinchDistancePx = this.getTouchDistancePx(firstTouch, secondTouch)
+    this.pinchMidpointClientX = (firstTouch.clientX + secondTouch.clientX) * 0.5
+    this.pinchMidpointClientY = (firstTouch.clientY + secondTouch.clientY) * 0.5
+    this.isPanning = false
+    this.hasPanPointer = false
+  }
+  private stopPinchGesture(): void {
+    this.pinchGestureActive = false
+    this.pinchDistancePx = 0
+    this.pinchMidpointClientX = 0
+    this.pinchMidpointClientY = 0
+    this.pinchCanvasOffsetX = 0
+    this.pinchCanvasOffsetY = 0
+    this.isPanning = false
+    this.hasPanPointer = false
+  }
+  private getTouchDistancePx(firstTouch: Touch, secondTouch: Touch): number {
+    const deltaX = firstTouch.clientX - secondTouch.clientX
+    const deltaY = firstTouch.clientY - secondTouch.clientY
+    return Math.hypot(deltaX, deltaY)
+  }
+  private consumeNativeTouchEvent(touchEvent: TouchEvent): void {
+    touchEvent.preventDefault()
+    touchEvent.stopImmediatePropagation()
+    touchEvent.stopPropagation()
   }
   private isTouchInputEvent(pointerEvent: MouseEvent | TouchEvent): pointerEvent is TouchEvent {
     return 'touches' in pointerEvent

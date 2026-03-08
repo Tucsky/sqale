@@ -17,6 +17,21 @@ export function zoomFromWheel(canvas: fabric.Canvas, pointer: ViewportPointer, w
   canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), nextZoom)
 }
 
+export function zoomFromPinch(
+  canvas: fabric.Canvas,
+  pointer: ViewportPointer,
+  previousDistancePx: number,
+  nextDistancePx: number,
+): void {
+  if (!Number.isFinite(previousDistancePx) || !Number.isFinite(nextDistancePx) || previousDistancePx <= 0 || nextDistancePx <= 0) {
+    return
+  }
+
+  const currentZoom = canvas.getZoom()
+  const nextZoom = clamp(currentZoom * (nextDistancePx / previousDistancePx), MIN_ZOOM, MAX_ZOOM)
+  canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), nextZoom)
+}
+
 export function panViewport(canvas: fabric.Canvas, deltaX: number, deltaY: number): void {
   const viewportTransform = canvas.viewportTransform
   if (!viewportTransform) {

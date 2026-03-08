@@ -52,8 +52,8 @@ describe('measurementUnits', () => {
     expect(normalizeLengthInputValue(1.234, MeasurementUnit.Meter)).toBe(1.23)
   })
 
-  it('falls back to meters for unknown persisted values', () => {
-    expect(resolveMeasurementUnit(undefined)).toBe(MeasurementUnit.Meter)
+  it('falls back to cm for unknown persisted values', () => {
+    expect(resolveMeasurementUnit(undefined)).toBe(MeasurementUnit.Centimeter)
     expect(resolveMeasurementUnit(MeasurementUnit.Inch)).toBe(MeasurementUnit.Inch)
   })
 })

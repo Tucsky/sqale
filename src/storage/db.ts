@@ -151,7 +151,7 @@ export function createEmptyFloor(name: string): FloorModel {
       spacingMeters: 0.5,
       snap: false,
     },
-    lengthUnit: MeasurementUnit.Meter,
+    lengthUnit: MeasurementUnit.Centimeter,
     surfaceUnit: MeasurementUnit.Meter,
     rooms: [],
     roomsAreaSqm: 0,
